@@ -134,14 +134,14 @@ public class Lexer {
                 //错误
             }
 
-            float x = v, d = 10;
+            // 为了避免浮点数加减乘除出现误差，用字符串解析成float
+            StringBuilder numTail = new StringBuilder(v + ".");
             for (; ; ) {
                 readch();
                 if (!Character.isDigit(peek)) break;
-                x = x + Character.digit(peek, 10) / d;
-                d = d * 10;
+                numTail.append(peek);
             }
-            return new Real(x);
+            return new Real(Float.parseFloat(numTail.toString()));
         }
         if (Character.isLetter(peek) || peek == '_') {
             StringBuffer b = new StringBuffer();
