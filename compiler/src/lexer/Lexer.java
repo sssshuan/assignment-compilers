@@ -4,8 +4,13 @@ import symbols.Type;
 
 import java.io.IOException;
 import java.util.Hashtable;
+import java.util.logging.Logger;
 
 public class Lexer {
+
+    private String sourceCode = "";
+    private int currentIndex = 0;
+
     public static int line = 1;
     char peek = ' ';
     Hashtable words = new Hashtable();
@@ -14,7 +19,7 @@ public class Lexer {
         words.put(w.lexeme, w);
     }
 
-    public Lexer() {
+    public Lexer(String source) {
         reserve(new Word("if", Tag.IF));
         reserve(new Word("else", Tag.ELSE));
         reserve(new Word("while", Tag.WHILE));
@@ -29,10 +34,11 @@ public class Lexer {
         reserve(Type.Char);
         reserve(Type.Bool);
         reserve(Type.Float);
+        this.sourceCode = source;
     }
 
     void readch() throws IOException {
-        peek = (char) System.in.read();
+        peek = sourceCode.charAt(currentIndex++);//(char) System.in.read();
     }
 
     boolean readch(char c) throws IOException {
@@ -45,6 +51,9 @@ public class Lexer {
     public Token scan() throws IOException {
         //空白
         for (; ; readch()) {
+            if(currentIndex == sourceCode.length()) {
+                return new Token(-1); //结束标志
+            }
             if (peek == ' ' || peek == '\t') continue;
             else if (peek == '\n') line = line + 1;
             else break;
@@ -88,9 +97,8 @@ public class Lexer {
             case '/':
                 if (readch('=')) return Word.divide_assign;
                 else return new Token('/');
-//            case '.':
-//                if (readch('.')) return Word.range;
-//                else return new Token('.'); //这边应该也错误
+            case '.':
+                if (readch('.')) return Word.range;
         }
 
         //数字
@@ -115,15 +123,11 @@ public class Lexer {
                     readch();
                 }
             if (peek != '.') return new Num(v);
-//            //在作为float之前先判断 ..
-//            readch();
-//            if(peek == '.') return new Num(v);
-
-            //到这边peek一定是.
-            // 如果是 .. 则这里
-//            if(readch('.')) {
-//
-//            }
+            //在作为float之前先判断 ..
+            //遇到 .. 直接返回前面的整数  ..留到下一轮在复合词法单元部分识别
+            if(sourceCode.charAt(currentIndex) == '.') {
+                return new Num(v);
+            }
 
             // 浮点数保证十进制
             if(radix != 10) {
