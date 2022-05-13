@@ -18,9 +18,7 @@ public class LexError extends Token{
 
     @Override
     public String toString() {
-        return "Error " +
-                "line " + line + ": '" +
-                msg + '\'';
+        return "line " + line + ", Error: " + msg;
     }
 
 }

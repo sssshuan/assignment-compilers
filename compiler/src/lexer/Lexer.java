@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -17,16 +16,15 @@ public class Lexer {
 
     public static int line = 1;
     char peek = ' ';
-    Hashtable words = new Hashtable();
-
-    List<LexError> errors = new ArrayList<>();
-
-    public List<LexError> getErrors() {
-        return errors;
-    }
+    // 用于存放 保留字、标识符
+    Hashtable<String, Word> words = new Hashtable<>();
+    List<Word> wordList = new ArrayList<>(); //顺序保存
+    // 用于存放错误
+    private List<LexError> errors = new ArrayList<>();
 
     void reserve(Word w) {
         words.put(w.lexeme, w);
+        wordList.add(w); // 保存一份顺序的
     }
 
     public Lexer(String source) {
@@ -130,28 +128,28 @@ public class Lexer {
                 }
             }
             //转成整数
-            boolean numOutOfRange = false;
-            while (Character.isDigit(peek) || (radix == 16 && (peek >= 'a' && peek <= 'f'))) {
-                if (v > 2147483647 / radix) { //马上越界，越界了也继续读，把该单元读完
-                    numOutOfRange = true;
+            while (Character.digit(peek, 10) >= 0 && Character.digit(peek, 10) < radix) {
+                if (v > 2147483647 / radix) { //马上越界
+                    forwardUtilTokenEnd(); // 越界了也继续读，把该单元读完
+                    return addError(line, "整数越界");
                 }
                 v = radix * v + Character.digit(peek, radix);
                 readch();
             }
-            if (numOutOfRange) {
-                errors.add(new LexError(line, "整数越界"));
-                return new Token(Tag.ERROR);
-            }
-            if (peek != '.') { //读完整数了
+            //读完整数了
+            if (peek != '.') {
                 //整数后面接字母、数字、下划线、非法字符，错误
-                if(Character.isLetter(peek)  || peek == '_' || characterIllegal(peek)) {
-                    StringBuilder builder = new StringBuilder(v+"");
-                    do {
-                        builder.append(peek);
-                        readch();
-                    }while (Character.isLetterOrDigit(peek) || peek =='_' || characterIllegal(peek));
-                    errors.add(new LexError(line, "标识符 '" + builder + "' 命名不合法"));
-                    return new Token(Tag.ERROR);
+                boolean radix8Error = radix == 8 && Character.digit(peek, 10) > 8; //8进制 8、9两个数字特殊
+                if(Character.isLetter(peek)  || peek == '_' || characterIllegal(peek) || radix8Error) {
+                    //把数值换回原表示，用于错误提示
+                    String prefix;
+                    switch (radix) {
+                        case 8 -> prefix = "0" + Integer.toOctalString(v);
+                        case 16 -> prefix = "0x" + Integer.toHexString(v);
+                        default -> prefix = String.valueOf(v);
+                    }
+                    String token = prefix + forwardUtilTokenEnd();
+                    return addError(line, "'" + token + "' 不合法");
                 }
                 //正常的话返回整数
                 return new Num(v);
@@ -164,22 +162,30 @@ public class Lexer {
 
             // 浮点数保证十进制
             if (radix != 10) {
-                errors.add(new LexError(line, "数值错误"));
-                return new Token(Tag.ERROR);
+                return addError(line, "数值错误");
             }
-
+            // .之后没有数字的情况 比如 3. + 5
+            readch();
+            if(!Character.isDigit(peek)) {
+                String token = String.valueOf(v) + '.';
+                return addError(line, "'" + token + "' 不合法");
+            }
             // 为了避免浮点数加减乘除出现误差，用字符串解析成float
             StringBuilder floatStringBuilder = new StringBuilder(v + ".");
-            for (; ; ) {
-                readch();
-                if (!Character.isDigit(peek)) break;
+            while (Character.isDigit(peek)) {
                 floatStringBuilder.append(peek);
+                readch();
+            }
+            //和整数部分一样 浮点数后如果连着字母、下划线、非法字符 同样报错
+            if(Character.isLetter(peek)  || peek == '_' || characterIllegal(peek)) {
+                String token = floatStringBuilder + forwardUtilTokenEnd();
+                return addError(line, "'" + token + "' 不合法");
             }
             return new Real(Float.parseFloat(floatStringBuilder.toString()));
         }
         //判断是否标识符：字母或下划线开头
         if (Character.isLetter(peek) || peek == '_') {
-            StringBuffer b = new StringBuffer();
+            StringBuilder b = new StringBuilder();
             do {
                 b.append(peek);
                 readch();
@@ -187,21 +193,21 @@ public class Lexer {
             //有非法字符 不合法
             if(characterIllegal(peek)) {
                 //把当前单元读完
-                do {
-                    b.append(peek);
-                    readch();
-                }while (Character.isLetterOrDigit(peek) || peek =='_' || characterIllegal(peek));
-
-                errors.add(new LexError(line, "标识符 '" + b + "' 命名不合法"));
-                return new Token(Tag.ERROR);
+                String token = b + forwardUtilTokenEnd();
+                return addError(line, "'" + token + "' 不合法");
             }
             //合法标识符
             String s = b.toString();
-            Word w = (Word) words.get(s);
+            Word w = words.get(s);
             if (w != null) return w;
             w = new Word(s, Tag.ID); // 标识符 抽象成 id
-            words.put(s, w);
+            reserve(w);
             return w;
+        }
+        if (characterIllegal(peek)) {
+            LexError error = addError(line, "非法字符 '" + peek + "'");
+            peek = ' ';
+            return error;
         }
         Token tok = new Token(peek); // 任意字符  值直接作为 tag
         peek = ' ';
@@ -250,5 +256,47 @@ public class Lexer {
     }
 
 
+    /**
+     * 当出现错误时，把该单元读完
+     * @return 返回该单元剩余部分
+     */
+    private String forwardUtilTokenEnd() throws IOException {
+        StringBuilder builder = new StringBuilder();
+        do {
+            builder.append(peek);
+            readch();
+        }while (Character.isLetterOrDigit(peek) || peek =='_' || characterIllegal(peek));
+
+        return builder.toString();
+    }
+
+    /**
+     * 添加一个错误
+     * @param line 所在行数
+     * @param msg 错误信息
+     * @return 返回新加的错误
+     */
+    private LexError addError(int line, String msg) {
+        errors.add(new LexError(line, msg));
+        return errors.get(errors.size()-1);
+    }
+
+    /**
+     * 输出符号表
+     */
+    public void printWordTable() {
+        for(Word word : wordList) {
+            System.out.println(word.lexeme);
+        }
+    }
+
+    /**
+     * 输出全部错误
+     */
+    public void printErrors() {
+        for(LexError error : errors) {
+            System.out.println(error);
+        }
+    }
 
 }

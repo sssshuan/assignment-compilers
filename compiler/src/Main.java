@@ -17,28 +17,25 @@ public class Main {
         StringBuilder builder = new StringBuilder();
         while (true) {
             Token token = lexer.scan();
-            if (token instanceof Word) {
-                Word word = (Word) token;
-                //如果是标识符 加个id， 否则是保留字，直接输出
-                builder.append("<" + (word.tag == Tag.ID ? "id, " : "") + word.lexeme + ">");
-            } else if (token instanceof Num) {
-                builder.append("<num, " + ((Num) token).value + ">");
-            } else if (token instanceof Real) {
-                builder.append("<real, " + ((Real) token).value + ">");
-            } else {
-                if(token.tag == Tag.CODE_END) {break;} //作为结束标志
-                if(token.tag != Tag.ERROR) {
-                    builder.append("<" + (char) token.tag + ">");
-                }
+            if (token.tag == Tag.CODE_END) {
+                break;
+            } else if (token.tag != Tag.ERROR) {
+                builder.append(token);
             }
         }
 
-        // 错误信息
-        for(LexError error : lexer.getErrors()) {
-            Logger.getGlobal().severe(error.toString());
-        }
-
+        System.out.println("分析结果:");
         System.out.println(builder);
+
+        System.out.println("\n\n\n");
+
+        System.out.println("错误信息：");
+        lexer.printErrors();
+
+        System.out.println("\n\n\n");
+
+        System.out.println("符号表：");
+        lexer.printWordTable();
 
         test(builder.toString());
 
