@@ -6,6 +6,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Lexer {
 
@@ -139,9 +142,21 @@ public class Lexer {
                 errors.add(new LexError(line, "整数越界"));
                 return new Token(Tag.ERROR);
             }
-
-            if (peek != '.') return new Num(v);
-            //在作为float之前先判断 ..
+            if (peek != '.') { //读完整数了
+                //整数后面接字母、数字、下划线、非法字符，错误
+                if(Character.isLetter(peek)  || peek == '_' || characterIllegal(peek)) {
+                    StringBuilder builder = new StringBuilder(v+"");
+                    do {
+                        builder.append(peek);
+                        readch();
+                    }while (Character.isLetterOrDigit(peek) || peek =='_' || characterIllegal(peek));
+                    errors.add(new LexError(line, "标识符 '" + builder + "' 命名不合法"));
+                    return new Token(Tag.ERROR);
+                }
+                //正常的话返回整数
+                return new Num(v);
+            }
+            //程序走到这边 peek一定是'.'   在作为float之前先判断 ..
             //遇到 .. 直接返回前面的整数  ..留到下一轮在复合词法单元部分识别
             if (sourceCode.charAt(currentIndex) == '.') {
                 return new Num(v);
@@ -149,7 +164,8 @@ public class Lexer {
 
             // 浮点数保证十进制
             if (radix != 10) {
-                //错误
+                errors.add(new LexError(line, "数值错误"));
+                return new Token(Tag.ERROR);
             }
 
             // 为了避免浮点数加减乘除出现误差，用字符串解析成float
@@ -161,12 +177,25 @@ public class Lexer {
             }
             return new Real(Float.parseFloat(floatStringBuilder.toString()));
         }
+        //判断是否标识符：字母或下划线开头
         if (Character.isLetter(peek) || peek == '_') {
             StringBuffer b = new StringBuffer();
             do {
                 b.append(peek);
                 readch();
             } while (Character.isLetterOrDigit(peek) || peek == '_');
+            //有非法字符 不合法
+            if(characterIllegal(peek)) {
+                //把当前单元读完
+                do {
+                    b.append(peek);
+                    readch();
+                }while (Character.isLetterOrDigit(peek) || peek =='_' || characterIllegal(peek));
+
+                errors.add(new LexError(line, "标识符 '" + b + "' 命名不合法"));
+                return new Token(Tag.ERROR);
+            }
+            //合法标识符
             String s = b.toString();
             Word w = (Word) words.get(s);
             if (w != null) return w;
@@ -194,12 +223,30 @@ public class Lexer {
             } else if (stringBuilder.charAt(i) == '"') {
                 //找出对应的引号所在位置, 赋值给i跳过字符串的大小写处理
                 i = stringBuilder.indexOf("\"", i + 1);
-            } else { //转换为小写字符
+            }else if(stringBuilder.charAt(i) =='\r'){
+                //将\r字符去掉(Mac和windows系统存在不同，mac里回车是\n,windows里是\n\r)
+                stringBuilder.delete(i,i+1);
+                i--;
+            }
+            else { //转换为小写字符
                 //要大写还是小写 看lexer默认加的关键词
                 stringBuilder.setCharAt(i, Character.toLowerCase(stringBuilder.charAt(i)));
             }
         }
         sourceCode = stringBuilder.toString();
+    }
+
+
+    /**
+     * 判断字符是否非法
+     * @param c 要判断的字符
+     * @return 非法返回true
+     */
+    private boolean characterIllegal(char c) {
+        String pattern = "[a-z0-9\\+\\*/\\\\=\\&\\|\\!\\?\\>\\<\\:\\.\\,\\(\\)\\;\\{\\}\\[\\]\\^\\%\\_\\\t\\n\\s-]";
+        Pattern r = Pattern.compile(pattern);
+        Matcher matcher = r.matcher("" + c);
+        return !matcher.find();
     }
 
 
