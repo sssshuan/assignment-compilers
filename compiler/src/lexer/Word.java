@@ -9,7 +9,7 @@ public class Word extends Token {
     }
 
     public String toString() {
-        return lexeme;
+        return "<" + (tag == Tag.ID ? "id, " : "") + lexeme + ">";
     }
 
     public static final Word

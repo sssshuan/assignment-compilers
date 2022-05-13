@@ -11,63 +11,34 @@ public class Main {
         FileInputStream inputStream = new FileInputStream("code.txt");
         String code = new String(inputStream.readAllBytes());
 
-        Lexer lexer = new Lexer(preProcess(code));
+        Lexer lexer = new Lexer(code);
 
+        // 开始分割词法单元
         StringBuilder builder = new StringBuilder();
-
-//
-//        float x = (float)( 1.034 + 5 / 10000.0);
-//        System.out.println("" + x);
-
         while (true) {
             Token token = lexer.scan();
-            if (token instanceof Word) {
-                Word word = (Word) token;
-                //如果是标识符 加个id， 否则是保留字，直接输出
-                builder.append("<" + (word.tag == Tag.ID ? "id, " : "") + word.lexeme + ">");
-            } else if (token instanceof Num) {
-                builder.append("<num, " + ((Num) token).value + ">");
-            } else if (token instanceof Real) {
-                builder.append("<real, " + ((Real) token).value + ">");
-            } else {
-                if(token.tag == -1) {break;}
-                builder.append("<" + (char) token.tag + ">");
+            if (token.tag == Tag.CODE_END) {
+                break;
+            } else if (token.tag != Tag.ERROR) {
+                builder.append(token);
             }
         }
 
+        System.out.println("分析结果:");
         System.out.println(builder);
+
+        System.out.println("\n\n\n");
+
+        System.out.println("错误信息：");
+        lexer.printErrors();
+
+        System.out.println("\n\n\n");
+
+        System.out.println("符号表：");
+        lexer.printWordTable();
 
         test(builder.toString());
 
-
-    }
-
-
-    /**
-     * 删除注释、把除了字符串里的字符 统一转成大写
-     *
-     * @param input 程序代码
-     * @return 返回处理好的字符串
-     */
-    public static String preProcess(String input) {
-        StringBuilder stringBuilder = new StringBuilder("  " + input + "  ");
-
-        // 删除注释、把除了字符串里的字符 统一转成大写
-        for (int i = 0; i < stringBuilder.length(); i++) {
-            //判断是否遇到注释行
-            if (stringBuilder.charAt(i) == '/' && stringBuilder.charAt(i + 1) == '/') {
-                int j = stringBuilder.indexOf("\n", i); //找出本行结束位置
-                stringBuilder.delete(i, j); //去除注释
-            } else if (stringBuilder.charAt(i) == '"') {
-                //找出对应的引号所在位置, 赋值给i跳过字符串的大小写处理
-                i = stringBuilder.indexOf("\"", i + 1);
-            } else { //转换为小写字符
-                //要大写还是小写 看lexer默认加的关键词
-                stringBuilder.setCharAt(i, Character.toLowerCase(stringBuilder.charAt(i)));
-            }
-        }
-
-        return stringBuilder.toString();
     }
 
     /**
