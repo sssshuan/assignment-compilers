@@ -18,6 +18,7 @@ public class Tag {
             AUTO_DECREMENT = 283, AUTO_INCREMENT = 284, // -- ++
             MINUS_ASSIGN = 285, PLUS_ASSIGN = 286, MULTIPLY_ASSIGN = 287, DIVIDE_ASSIGN = 288;// -= += *= /=
 
+    public final static int CODE_END = -1, ERROR = -2;
 }
 //
 //enum Test {

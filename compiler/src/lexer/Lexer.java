@@ -3,8 +3,9 @@ package lexer;
 import symbols.Type;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Hashtable;
-import java.util.logging.Logger;
+import java.util.List;
 
 public class Lexer {
 
@@ -14,6 +15,12 @@ public class Lexer {
     public static int line = 1;
     char peek = ' ';
     Hashtable words = new Hashtable();
+
+    List<LexError> errors = new ArrayList<>();
+
+    public List<LexError> getErrors() {
+        return errors;
+    }
 
     void reserve(Word w) {
         words.put(w.lexeme, w);
@@ -34,7 +41,8 @@ public class Lexer {
         reserve(Type.Char);
         reserve(Type.Bool);
         reserve(Type.Float);
-        this.sourceCode = source;
+        // 预处理代码
+        preProcess(source);
     }
 
     void readch() throws IOException {
@@ -51,8 +59,8 @@ public class Lexer {
     public Token scan() throws IOException {
         //空白
         for (; ; readch()) {
-            if(currentIndex == sourceCode.length()) {
-                return new Token(-1); //结束标志
+            if (currentIndex == sourceCode.length()) {
+                return new Token(Tag.CODE_END); //结束标志
             }
             if (peek == ' ' || peek == '\t') continue;
             else if (peek == '\n') line = line + 1;
@@ -105,43 +113,53 @@ public class Lexer {
         if (Character.isDigit(peek) || peek == '.') {
             int v = 0;
             int radix = 10; //进制
-            if (peek != '.')
+            if (peek != '.') {
                 //判断进制
                 // 0.123 0123  0x123 几种情况
-                if(peek == '0') {
+                if (peek == '0') {
                     readch();
-                    if(peek == 'x') {
+                    if (peek == 'x') {
                         radix = 16;
                         readch();
-                    }else if(peek != '.'){
+                    } else if (peek != '.') {
                         radix = 8;
                     }
                 }
-                //转成整数
-                while (Character.isDigit(peek) || (radix == 16 && (peek >= 'a' && peek <= 'f')) ) {
-                    v = radix * v + Character.digit(peek, radix);
-                    readch();
+            }
+            //转成整数
+            boolean numOutOfRange = false;
+            while (Character.isDigit(peek) || (radix == 16 && (peek >= 'a' && peek <= 'f'))) {
+                if (v > 2147483647 / radix) { //马上越界，越界了也继续读，把该单元读完
+                    numOutOfRange = true;
                 }
+                v = radix * v + Character.digit(peek, radix);
+                readch();
+            }
+            if (numOutOfRange) {
+                errors.add(new LexError(line, "整数越界"));
+                return new Token(Tag.ERROR);
+            }
+
             if (peek != '.') return new Num(v);
             //在作为float之前先判断 ..
             //遇到 .. 直接返回前面的整数  ..留到下一轮在复合词法单元部分识别
-            if(sourceCode.charAt(currentIndex) == '.') {
+            if (sourceCode.charAt(currentIndex) == '.') {
                 return new Num(v);
             }
 
             // 浮点数保证十进制
-            if(radix != 10) {
+            if (radix != 10) {
                 //错误
             }
 
             // 为了避免浮点数加减乘除出现误差，用字符串解析成float
-            StringBuilder numTail = new StringBuilder(v + ".");
+            StringBuilder floatStringBuilder = new StringBuilder(v + ".");
             for (; ; ) {
                 readch();
                 if (!Character.isDigit(peek)) break;
-                numTail.append(peek);
+                floatStringBuilder.append(peek);
             }
-            return new Real(Float.parseFloat(numTail.toString()));
+            return new Real(Float.parseFloat(floatStringBuilder.toString()));
         }
         if (Character.isLetter(peek) || peek == '_') {
             StringBuffer b = new StringBuffer();
@@ -160,4 +178,30 @@ public class Lexer {
         peek = ' ';
         return tok;
     }
+
+
+    /**
+     * 删除注释、把除了字符串里的字符 统一转成小写
+     */
+    private void preProcess(String input) {
+        StringBuilder stringBuilder = new StringBuilder(input);
+        // 删除注释、把除了字符串里的字符 统一转成大写
+        for (int i = 0; i < stringBuilder.length(); i++) {
+            //判断是否遇到注释行
+            if (stringBuilder.charAt(i) == '/' && stringBuilder.charAt(i + 1) == '/') {
+                int j = stringBuilder.indexOf("\n", i); //找出本行结束位置
+                stringBuilder.delete(i, j); //去除注释
+            } else if (stringBuilder.charAt(i) == '"') {
+                //找出对应的引号所在位置, 赋值给i跳过字符串的大小写处理
+                i = stringBuilder.indexOf("\"", i + 1);
+            } else { //转换为小写字符
+                //要大写还是小写 看lexer默认加的关键词
+                stringBuilder.setCharAt(i, Character.toLowerCase(stringBuilder.charAt(i)));
+            }
+        }
+        sourceCode = stringBuilder.toString();
+    }
+
+
+
 }
