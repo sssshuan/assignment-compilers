@@ -18,9 +18,9 @@ public class Lexer {
     char peek = ' ';
     // 用于存放 保留字、标识符
     Hashtable<String, Word> words = new Hashtable<>();
-    List<Word> wordList = new ArrayList<>(); //顺序保存
+    public List<Word> wordList = new ArrayList<>(); //顺序保存
     // 用于存放错误
-    private List<LexError> errors = new ArrayList<>();
+    public List<LexError> errors = new ArrayList<>();
 
     void reserve(Word w) {
         words.put(w.lexeme, w);
