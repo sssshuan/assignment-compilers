@@ -44,6 +44,7 @@ public class Lexer {
         reserve(Type.Float);
         // 预处理代码
         preProcess(source);
+        line = 1;
     }
 
     void readch() throws IOException {
@@ -128,7 +129,7 @@ public class Lexer {
                 }
             }
             //转成整数
-            while (Character.digit(peek, 10) >= 0 && Character.digit(peek, 10) < radix) {
+            while (Character.digit(peek, radix) >= 0 && Character.digit(peek, radix) < radix) {
                 if (v > 2147483647 / radix) { //马上越界
                     forwardUtilTokenEnd(); // 越界了也继续读，把该单元读完
                     return addError(line, "整数越界");
