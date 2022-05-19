@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Lexer {
 
@@ -218,7 +220,6 @@ public class Lexer {
         return tok;
     }
 
-
     /**
      * 删除注释、把除了字符串里的字符 统一转成小写
      */
@@ -253,12 +254,13 @@ public class Lexer {
      * @return 非法返回true
      */
     private boolean characterIllegal(char c) {
-        String legalCharacters = "abcdefghijklmnopqrstuvwxyz0123456789+-*/=&|!?><:.,();{}[]^%_\\f\\n\\r\\t\\v ";
-        return !legalCharacters.contains(c+"");
+//        String legalCharacters = "abcdefghijklmnopqrstuvwxyz0123456789+-*/=&|!?><:.,();{}[]^%_\\f\\n\\r\\t\\v ";
+//        return !legalCharacters.contains(c+"");
 //        String pattern = "[a-z0-9\"\\+\\*/\\\\=\\&\\|\\!\\?\\>\\<\\:\\.\\,\\(\\)\\;\\{\\}\\[\\]\\^\\%\\_\\\t\\n\\s-]";
-//        Pattern r = Pattern.compile(pattern);
-//        Matcher matcher = r.matcher("" + c);
-//        return !matcher.find();
+        String pattern = "[a-z0-9\"+*/=&|!?><:.,();{}\\[\\]^%_\t\n\\s-]";
+        Pattern r = Pattern.compile(pattern);
+        Matcher matcher = r.matcher("" + c);
+        return !matcher.find();
     }
 
 
