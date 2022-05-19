@@ -6,8 +6,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class Lexer {
 
@@ -43,7 +41,7 @@ public class Lexer {
         reserve(Type.Bool);
         reserve(Type.Float);
         // 预处理代码
-        preProcess(source);
+        preProcess(source + " \n");
         line = 1;
     }
 
@@ -92,7 +90,7 @@ public class Lexer {
                 else return new Token('>');
             case ':':
                 if (readch('=')) return Word.assignment;
-                else return new Token(':'); //这边应该错误？
+                else return new Token(':');
             case '-':
                 if (readch('-')) return Word.auto_decrement;
                 else if(peek == '=') { peek = ' ' ; return Word.minus_assign; }
@@ -108,7 +106,12 @@ public class Lexer {
                 if (readch('=')) return Word.divide_assign;
                 else return new Token('/');
             case '.':
-                if (readch('.')) return Word.range;
+                if(sourceCode.charAt(currentIndex)=='.'){
+                    currentIndex++;
+                    peek = ' ';
+                    return Word.range;
+                }
+//                if (readch('.')) return Word.range;
         }
 
         //数字
@@ -240,7 +243,7 @@ public class Lexer {
                 stringBuilder.setCharAt(i, Character.toLowerCase(stringBuilder.charAt(i)));
             }
         }
-        sourceCode = stringBuilder.toString();
+        sourceCode = stringBuilder.toString() + " ";
     }
 
 
@@ -250,10 +253,12 @@ public class Lexer {
      * @return 非法返回true
      */
     private boolean characterIllegal(char c) {
-        String pattern = "[a-z0-9\\+\\*/\\\\=\\&\\|\\!\\?\\>\\<\\:\\.\\,\\(\\)\\;\\{\\}\\[\\]\\^\\%\\_\\\t\\n\\s-]";
-        Pattern r = Pattern.compile(pattern);
-        Matcher matcher = r.matcher("" + c);
-        return !matcher.find();
+        String legalCharacters = "abcdefghijklmnopqrstuvwxyz0123456789+-*/=&|!?><:.,();{}[]^%_\\f\\n\\r\\t\\v ";
+        return !legalCharacters.contains(c+"");
+//        String pattern = "[a-z0-9\"\\+\\*/\\\\=\\&\\|\\!\\?\\>\\<\\:\\.\\,\\(\\)\\;\\{\\}\\[\\]\\^\\%\\_\\\t\\n\\s-]";
+//        Pattern r = Pattern.compile(pattern);
+//        Matcher matcher = r.matcher("" + c);
+//        return !matcher.find();
     }
 
 

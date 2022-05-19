@@ -124,7 +124,7 @@ public class MainFrame extends JFrame {
                     if (token.tag == Tag.CODE_END) {
                         break;
                     } else if (token.tag != Tag.ERROR) {
-                        builder.append(token);
+                        builder.append(token + "\n");
                     }
                 }
                 builder.append("\n\n错误信息：\n");
