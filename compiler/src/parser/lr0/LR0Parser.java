@@ -5,7 +5,6 @@ import parser.util.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.logging.Logger;
 
 public class LR0Parser extends LRParser {
     
@@ -175,8 +174,8 @@ public class LR0Parser extends LRParser {
             return shiftAction;
         }
 
-        // 剩下的情况，归约优先(假设全部左结合)
-        return reduceAction;
+        // 等级相同（结合性也相同）,根据结合性处理
+        return isLeftCombination(shiftOp) ? reduceAction : shiftAction;
     }
 
     /**
@@ -205,6 +204,19 @@ public class LR0Parser extends LRParser {
             }
         }
         return -1;
+    }
+
+    /**
+     * 判断运算符是否左结合
+     */
+    private boolean isLeftCombination(String operator) {
+        String[] arr = {"++", "--", "!", "=", "/=", "*=", "+=", "-="};//这些是右结合
+        for(String str : arr) {
+            if(str.equals(operator)) {
+                return false;
+            }
+        }
+        return true;
     }
 
 }

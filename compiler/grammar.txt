@@ -7,6 +7,10 @@ stmt->if ( expr ) stmt
 stmt->if ( expr ) stmt else stmt
 stmt->for ( id in num .. num ) stmt
 stmt->variable = expr ;
+stmt->variable -= expr ;
+stmt->variable += expr ;
+stmt->variable *= expr ;
+stmt->variable /= expr ;
 variable_declaration -> type null_sign variables ; variable_declaration
 variable_declaration -> epsilon
 type -> int
