@@ -20,12 +20,6 @@ public class LR0Parser extends LRParser {
         createGoToTable();
         return createActionTableForSLR1();
     }
-
-//    public boolean parserLR0() {
-//        createStates();
-//        createGoToTable();
-//        return createActionTableForLR0();
-//    }
     
     protected void createStates() {
         canonicalCollection = new ArrayList<>();
@@ -107,26 +101,25 @@ public class LR0Parser extends LRParser {
                         int index = grammar.findRuleIndex(rule);
                         Action action = new Action(ActionType.REDUCE, index); // 归约
                         for (String str : follow) {
-                            if (actionTable[i].get(str) != null) {
-                                //提示错误
+                            if (actionTable[i].get(str) != null) { // 冲突
                                 System.out.println("\"" + action + "\" conflict with \"" + actionTable[i].get(str) + "\" in state " + i);
                                 if(actionTable[i].get(str).getType() == ActionType.REDUCE) {
                                     //归约/归约冲突 错误
                                     return false;
                                 }else {
+                                    // 移入/归约 冲突
                                     // 简单找出该归约规则的操作符 （先默认表达式只有一个操作符。。。）
                                     String newOp = "";
                                     for (String op : rule.getRightSide()) {
                                         if (getPriority(op) != -1) {
-//                                            Logger.getGlobal().info(op);
                                             newOp = op;
                                             break;
                                         }
                                     }
                                     if(newOp.isEmpty()) {
-                                        Logger.getGlobal().info("缺少相关符号的二义处理, 规则：" + rule.toString());
+                                        System.out.println("缺少相关符号\"" + str + "\"的二义处理, 规则：" + rule.toString());
+                                        newOp = rule.toString(); //用整条规约规则
                                     }
-
                                     // 特判 保留一个操作
                                     Action reservedAction = solveConflict(actionTable[i].get(str), str, action, newOp);
                                     actionTable[i].put(str,reservedAction);
@@ -142,44 +135,6 @@ public class LR0Parser extends LRParser {
         }
         return true;
     }
-
-//    private boolean createActionTableForLR0() {
-//        actionTable = new HashMap[canonicalCollection.size()];
-//        for (int i = 0; i < goToTable.length; i++) {
-//            actionTable[i] = new HashMap<>();
-//        }
-//        for (int i = 0; i < canonicalCollection.size(); i++) {
-//            for (String s : canonicalCollection.get(i).getTransition().keySet()) {
-//                if (grammar.getTerminals().contains(s)) {
-//                    actionTable[i].put(s, new Action(ActionType.SHIFT, findStateIndex(canonicalCollection.get(i).getTransition().get(s))));
-//                }
-//            }
-//        }
-//        for (int i = 0; i < canonicalCollection.size(); i++) {
-//            for (LR0Item item : canonicalCollection.get(i).getItems()) {
-//                if (item.getDotPointer() == item.getRightSide().length) {
-//                    if (item.getLeftSide().equals("S'")) {
-//                        actionTable[i].put("$", new Action(ActionType.ACCEPT, 0));
-//                    } else {
-//                        HashSet<String> terminals = grammar.getTerminals();
-//                        terminals.add("$");
-//                        Rule rule = new Rule(item.getLeftSide(), item.getRightSide().clone());
-//                        int index = grammar.findRuleIndex(rule);
-//                        Action action = new Action(ActionType.REDUCE, index);
-//                        for (String str : terminals) {
-//                            if (actionTable[i].get(str) != null) {
-//                                System.out.println("it has a REDUCE-" + actionTable[i].get(str).getType() + " conflict in state " + i);
-//                                return false;
-//                            } else {
-//                                actionTable[i].put(str, action);
-//                            }
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//        return true;
-//    }
     
     private int findStateIndex(LR0State state) {
         for (int i = 0; i < canonicalCollection.size(); i++) {
@@ -208,9 +163,14 @@ public class LR0Parser extends LRParser {
      * @return 返回要保留的操作
      */
     private Action solveConflict(Action shiftAction, String shiftOp, Action reduceAction, String reduceOp) {
+        // 特殊二义
+        if(shiftOp.equals("else") && reduceOp.equals("stmt -> if ( expr ) stmt ")) {
+            return shiftAction;
+        }
+
         int reduceOpPriority = getPriority(reduceOp);
         int shiftOpPriority = getPriority(shiftOp);
-//        Logger.getGlobal().info("啊" + shiftOp + shiftOpPriority + "\t" +reduceOp + reduceOpPriority);
+        System.out.println("优先级比较" + shiftOp + shiftOpPriority + "\t" +reduceOp + reduceOpPriority);
         if(shiftOpPriority > reduceOpPriority) {
             return shiftAction;
         }
@@ -218,33 +178,12 @@ public class LR0Parser extends LRParser {
         // 剩下的情况，归约优先(假设全部左结合)
         return reduceAction;
     }
-//
-//    /**
-//     * 判断运算符是否属于产生冲突的符号集
-//     * @param op 要判断的符号
-//     * @return true表示属于
-//     */
-//    private boolean ambiguousOperator(String op) {
-//        //出现二义冲突的符号，手动添加到这里
-//        String[][] arr = new String[][]{
-//                {"++", "--", "!"}, //右结合
-//                {"*", "/"},
-//                {"-", "/"},
-//                {">>", "<<"},
-//                {">", ">=", "<", "<="},
-//                {"==", "!="},
-//                {"^"},
-//                {"&&"},
-//                {"||"},
-//                {"=", "/=", "*=", "+=", "-="}};
-//        for(String str : arr) {
-//            if(str.equals(op)) {
-//                return true;
-//            }
-//        }
-//        return false;
-//    }
 
+    /**
+     *
+     * @param operator
+     * @return
+     */
     private int getPriority(String operator) {
         String[][] arr = new String[][]{
                 {"++", "--", "!"}, //右结合
