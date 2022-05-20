@@ -36,6 +36,7 @@ public class Lexer {
         reserve(new Word("continue", Tag.CONTINUE));
         reserve(new Word("for", Tag.FOR));
         reserve(new Word("in", Tag.IN));
+        reserve(new Word("program", Tag.PROGRAM));
         reserve(Word.True);
         reserve(Word.False);
         reserve(Type.Int);

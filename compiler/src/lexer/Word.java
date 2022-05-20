@@ -12,6 +12,11 @@ public class Word extends Token {
         return "<" + (tag == Tag.ID ? "id, " : "") + lexeme + ">";
     }
 
+    @Override
+    public String desc() {
+        return tag == Tag.ID ? "id" : lexeme;
+    }
+
     public static final Word
             and = new Word("&&", Tag.AND), or = new Word("||", Tag.OR),
             eq = new Word("==", Tag.EQ), ne = new Word("!=", Tag.NE),

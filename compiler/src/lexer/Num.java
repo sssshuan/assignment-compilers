@@ -11,4 +11,9 @@ public class Num extends Token {
     public String toString() {
         return "<num, " + value + ">";
     }
+
+    @Override
+    public String desc() {
+        return "num";
+    }
 }

@@ -11,4 +11,9 @@ public class Real extends Token {
     public String toString() {
         return "<real, " + value + ">";
     }
+
+    @Override
+    public String desc() {
+        return "real";
+    }
 }
