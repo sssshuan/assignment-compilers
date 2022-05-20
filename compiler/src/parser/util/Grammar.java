@@ -23,9 +23,9 @@ public class Grammar {
             String[] sides = st.split("->");
             String leftSide = sides[0].trim();
             variables.add(leftSide);
-            String[] rulesRightSide = sides[1].trim().split("\\|");
-            for (String rule : rulesRightSide) {
-                String[] rightSide = rule.trim().split("\\s+");
+//            String[] rulesRightSide = sides[1].trim().split("\\|");
+//            for (String rule : rulesRightSide) {
+                String[] rightSide = sides[1].trim().split("\\s+");
                 for (String terminal : rightSide) {
                     if (!terminal.equals("epsilon")) { //空
                         terminals.add(terminal);
@@ -38,7 +38,7 @@ public class Grammar {
                 }
                 rules.add(new Rule(leftSide, rightSide));
                 line++;
-            }
+//            }
         }
         for (String variable : variables) {
             terminals.remove(variable);

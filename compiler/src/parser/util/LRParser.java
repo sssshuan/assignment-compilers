@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Stack;
+import java.util.logging.Logger;
 
 public abstract class LRParser {
 
@@ -42,16 +43,22 @@ public abstract class LRParser {
             Action action = actionTable[state].get(nextInput);
             if(action == null){
                 // 表项为空
+                Logger.getGlobal().severe("表项<" + state + ","+ nextInput + ">为空");
                 return false;
             }else if(action.getType() == ActionType.SHIFT){
                 //移入
                 stack.push(nextInput);
                 stateStack.push(action.getOperand());
 
-//for(int i = 0; i < stack.size(); ++i) {
-//    System.out.print(stack.get(i));
-//}
-//System.out.println();
+for(int i = 0; i < stateStack.size(); ++i) {
+    System.out.print(stateStack.get(i) + " ");
+}
+System.out.print("\t\t");
+for(int i = 0; i < stack.size(); ++i) {
+    System.out.print(stack.get(i) + " ");
+}
+System.out.print("\t\t SHIFT " + action.getOperand());
+System.out.println();
 
                 inputIndex++;
             }else if(action.getType() == ActionType.REDUCE){
@@ -74,13 +81,16 @@ public abstract class LRParser {
                 int variableState = goToTable[nextState].get(leftSide);
                 stateStack.push(variableState);
 
-//for(int i = 0; i < stack.size(); ++i) {
-//    System.out.print(stack.get(i));
-//}
-//System.out.print("\treduce ");
-//System.out.print(rule);
-//
-//System.out.println();
+for(int i = 0; i < stateStack.size(); ++i) {
+    System.out.print(stateStack.get(i) + " ");
+}
+for(int i = 0; i < stack.size(); ++i) {
+    System.out.print(stack.get(i) + " ");
+}
+System.out.print("\t\tREDUCE ");
+System.out.print(rule);
+
+System.out.println();
 
             }else if(action.getType() == ActionType.ACCEPT){
                 //接受

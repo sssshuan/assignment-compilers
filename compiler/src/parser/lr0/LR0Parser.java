@@ -117,11 +117,16 @@ public class LR0Parser extends LRParser {
                                     // 简单找出该归约规则的操作符 （先默认表达式只有一个操作符。。。）
                                     String newOp = "";
                                     for (String op : rule.getRightSide()) {
-                                        if (ambiguousOperator(op)) {
+                                        if (getPriority(op) != -1) {
+//                                            Logger.getGlobal().info(op);
                                             newOp = op;
                                             break;
                                         }
                                     }
+                                    if(newOp.isEmpty()) {
+                                        Logger.getGlobal().info("缺少相关符号的二义处理, 规则：" + rule.toString());
+                                    }
+
                                     // 特判 保留一个操作
                                     Action reservedAction = solveConflict(actionTable[i].get(str), str, action, newOp);
                                     actionTable[i].put(str,reservedAction);
@@ -185,14 +190,14 @@ public class LR0Parser extends LRParser {
         return -1;
     }
 
-//    public String canonicalCollectionStr() {
-//        String str = "Canonical Collection : \n";
-//        for (int i = 0; i < canonicalCollection.size(); i++) {
-//            str += "State " + i + " : \n";
-//            str += canonicalCollection.get(i)+"\n";
-//        }
-//        return str;
-//    }
+    public String canonicalCollectionStr() {
+        String str = "Canonical Collection : \n";
+        for (int i = 0; i < canonicalCollection.size(); i++) {
+            str += "State " + i + " : \n";
+            str += canonicalCollection.get(i)+"\n";
+        }
+        return str;
+    }
 
     /**
      * 特判解决冲突（相当于手动调整）
@@ -203,29 +208,64 @@ public class LR0Parser extends LRParser {
      * @return 返回要保留的操作
      */
     private Action solveConflict(Action shiftAction, String shiftOp, Action reduceAction, String reduceOp) {
-        // * 优先于 + ，所以优先移入
-        if(reduceOp.equals("+") && shiftOp.equals("*")) {
+        int reduceOpPriority = getPriority(reduceOp);
+        int shiftOpPriority = getPriority(shiftOp);
+//        Logger.getGlobal().info("啊" + shiftOp + shiftOpPriority + "\t" +reduceOp + reduceOpPriority);
+        if(shiftOpPriority > reduceOpPriority) {
             return shiftAction;
         }
 
-        // 剩下的情况，归约优先
+        // 剩下的情况，归约优先(假设全部左结合)
         return reduceAction;
     }
+//
+//    /**
+//     * 判断运算符是否属于产生冲突的符号集
+//     * @param op 要判断的符号
+//     * @return true表示属于
+//     */
+//    private boolean ambiguousOperator(String op) {
+//        //出现二义冲突的符号，手动添加到这里
+//        String[][] arr = new String[][]{
+//                {"++", "--", "!"}, //右结合
+//                {"*", "/"},
+//                {"-", "/"},
+//                {">>", "<<"},
+//                {">", ">=", "<", "<="},
+//                {"==", "!="},
+//                {"^"},
+//                {"&&"},
+//                {"||"},
+//                {"=", "/=", "*=", "+=", "-="}};
+//        for(String str : arr) {
+//            if(str.equals(op)) {
+//                return true;
+//            }
+//        }
+//        return false;
+//    }
 
-    /**
-     * 判断运算符是否属于产生冲突的符号集
-     * @param op 要判断的符号
-     * @return true表示属于
-     */
-    private boolean ambiguousOperator(String op) {
-        //出现二义冲突的符号，手动添加到这里
-        String[] arr = new String[]{"*", "+"};
-        for(String str : arr) {
-            if(str.equals(op)) {
-                return true;
+    private int getPriority(String operator) {
+        String[][] arr = new String[][]{
+                {"++", "--", "!"}, //右结合
+                {"*", "/"},
+                {"-", "+"},
+                {">>", "<<"},
+                {">", ">=", "<", "<="},
+                {"==", "!="},
+                {"^"},
+                {"&&"},
+                {"||"},
+                {"=", "/=", "*=", "+=", "-="}};
+
+        for(int i = 0; i < arr.length; ++i) {
+            for(String str : arr[i]) {
+                if(str.equals(operator)) {
+                    return arr.length-i;
+                }
             }
         }
-        return false;
+        return -1;
     }
 
 }

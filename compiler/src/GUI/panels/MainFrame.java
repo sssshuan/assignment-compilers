@@ -121,7 +121,11 @@ public class MainFrame extends JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
                 content = inputArea.getText();
-                startAnalyze(content);
+                try {
+                    startAnalyze(content);
+                } catch (IOException ioException) {
+                    ioException.printStackTrace();
+                }
             }
         });
 
@@ -209,10 +213,12 @@ public class MainFrame extends JFrame {
 
     private void initParser() {
         FileInputStream inputStream = null;
+        FileOutputStream outputStream = null; // 保存分析表 方便出现错误时查看
         String rulesInput = "";
         try {
             inputStream = new FileInputStream("grammar.txt");
             rulesInput = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+            outputStream = new FileOutputStream("table.txt");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -221,9 +227,17 @@ public class MainFrame extends JFrame {
         if (lr0Parser.parserSLR1()) {
             System.out.println(lr0Parser.actionTableStr());
             System.out.println(lr0Parser.goToTableStr());
+            try {
+                outputStream.write(lr0Parser.actionTableStr().getBytes());
+                outputStream.write(lr0Parser.goToTableStr().getBytes());
+                outputStream.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
         else {
             System.out.println("parse not ok");
+            System.out.println(lr0Parser.canonicalCollectionStr());
         }
     }
 
@@ -231,18 +245,13 @@ public class MainFrame extends JFrame {
      * 分析程序
      * @param sourceCode 程序文本
      */
-    private void startAnalyze(String sourceCode) {
+    private void startAnalyze(String sourceCode) throws IOException {
         Lexer lexer = new Lexer(sourceCode); // 词法分析器
         StringBuilder builder = new StringBuilder(); //存词法分析显示结果
         ArrayList<String> input = new ArrayList<>(); //词法分析结果（满足语法分析的格式）
         // 识别词法单元
         while (true) {
-            Token token = null;
-            try {
-                token = lexer.scan();
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
+            Token token = lexer.scan();
             if (token.tag == Tag.CODE_END) {
                 break;
             } else if (token.tag != Tag.ERROR) {
@@ -265,7 +274,10 @@ public class MainFrame extends JFrame {
         outputArea.setText(builder.toString());
 
         // 语法分析
-        lr0Parser.accept(input);
+        if(!lr0Parser.accept(input)) {
+            System.out.println("语法分析 失败");
+            System.out.println(lr0Parser.canonicalCollectionStr());
+        }
     }
 
 }
