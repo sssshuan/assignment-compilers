@@ -7,6 +7,8 @@ import parser.util.Grammar;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -84,11 +86,43 @@ public class MainFrame extends JFrame {
         outputPanel.add(outputBtn, BorderLayout.SOUTH);
         analyseBtn = new Button("开始分析>>>");
 
+        initTableUI();
+
         //界面添加
         setLayout(new FlowLayout());
         add(inputPanel);
         add(analyseBtn);
         add(outputPanel);
+        add(new JScrollPane(scoreTable));
+    }
+
+    class SHTable extends JTable {
+        @Override
+        public boolean isCellEditable(int row, int column) {
+            return false;
+        }
+    }
+
+    private JTable scoreTable;
+    /**
+     * 表格部分
+     */
+    private void initTableUI() {
+        scoreTable = new SHTable();
+        //设置表头颜色
+        DefaultTableCellRenderer cellRenderer = new DefaultTableCellRenderer();
+        cellRenderer.setBackground(new Color(204, 204, 210, 247));
+        cellRenderer.setHorizontalAlignment(SwingConstants.CENTER);
+        scoreTable.getTableHeader().setDefaultRenderer(cellRenderer);
+//        scoreTable.setRowHeight(90);
+
+        scoreTable.setShowGrid(true);
+        scoreTable.setGridColor(Color.black); // 默认是白色
+
+//        scoreTable.setCellSelectionEnabled(true);
+
+        //如果 JTbale 对象直接添加到 JFrame 中，则表头显示不出来，需要把表格对象放入 JScrollPane 对象中
+        add(new JScrollPane(scoreTable), BorderLayout.CENTER);
     }
 
     private void initEvents() {
@@ -282,12 +316,25 @@ public class MainFrame extends JFrame {
             System.out.println("语法分析 失败");
             System.out.println(lr0Parser.canonicalCollectionStr());
         }
+
+        DefaultTableModel tableModel=(DefaultTableModel) scoreTable.getModel();    //获得表格模型
+        tableModel.setRowCount(0);    //清空表格中的数据
+        tableModel.setColumnIdentifiers(new Object[]{"状态栈","符号栈", "操作"});    //设置表头
+
+        scoreTable.setModel(tableModel);    //应用表格模型
+
         for (List<String> operation : result) {
-            System.out.print(operation.get(0)); // 状态栈
-            System.out.print(operation.get(1)); // 符号栈
-            System.out.print(operation.get(2)); //操作
-            System.out.println();
+            tableModel.addRow(new Object[]{operation.get(0), operation.get(1), operation.get(2)});    //增加行
+//            System.out.print(operation.get(0)); // 状态栈
+//            System.out.print(operation.get(1)); // 符号栈
+//            System.out.print(operation.get(2)); //操作
+//            System.out.println();
         }
+        
+        scoreTable.getColumnModel().getColumn(0).setPreferredWidth(200);
+        scoreTable.getColumnModel().getColumn(1).setPreferredWidth(200);
+        scoreTable.getColumnModel().getColumn(2).setPreferredWidth(200);
+        scoreTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
     }
 
 }
