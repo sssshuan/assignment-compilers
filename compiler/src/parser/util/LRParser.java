@@ -42,6 +42,7 @@ public abstract class LRParser {
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
+        result = new ArrayList<>();
 
         inputs.add("$");
         int inputIndex = 0;
@@ -180,7 +181,7 @@ public abstract class LRParser {
         if(action.getType() == ActionType.SKIP) {
             record.add("");
             record.add("");
-            record.add("删除输入符号");
+            record.add("跳过输入符号");
         }
         else {
             StringBuilder builder = new StringBuilder();

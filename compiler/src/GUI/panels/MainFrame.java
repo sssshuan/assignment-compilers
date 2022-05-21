@@ -307,8 +307,9 @@ public class MainFrame extends JFrame {
         outputArea.setText(builder.toString());
 
         // 语法分析
+        boolean success = lr0Parser.accept(input);
         var result = lr0Parser.getResult();
-        if(!lr0Parser.accept(input)) {
+        if(!success) {
             List<String> e = new ArrayList<>();
             e.add(""); e.add(""); e.add("失败");
             result.add(e);
@@ -320,17 +321,11 @@ public class MainFrame extends JFrame {
         tableModel.setRowCount(0);    //清空表格中的数据
         tableModel.setColumnIdentifiers(new Object[]{"状态栈","符号栈", "操作"});    //设置表头
 
-        scoreTable.setModel(tableModel);    //应用表格模型
-
         for (List<String> operation : result) {
             tableModel.addRow(new Object[]{operation.get(0), operation.get(1), operation.get(2)});    //增加行
-//            System.out.print(operation.get(0)); // 状态栈
-//            System.out.print(operation.get(1)); // 符号栈
-//            System.out.print(operation.get(2)); //操作
-//            System.out.println();
         }
 
-
+        scoreTable.setModel(tableModel);    //应用表格模型
 
     }
 
