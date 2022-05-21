@@ -146,7 +146,7 @@ public class Lexer {
             //读完整数了
             if (peek != '.') {
                 //整数后面接字母、数字、下划线、非法字符，错误
-                boolean radix8Error = radix == 8 && Character.digit(peek, 10) > 8; //8进制 8、9两个数字特殊
+                boolean radix8Error = radix == 8 && Character.digit(peek, 10) >= 8; //8进制 8、9两个数字特殊
                 if(Character.isLetter(peek)  || peek == '_' || characterIllegal(peek) || radix8Error) {
                     //把数值换回原表示，用于错误提示
                     String prefix;
