@@ -2,13 +2,13 @@ package GUI.panels;
 
 import lexer.*;
 import parser.lr0.LR0Parser;
-import parser.util.Action;
 import parser.util.Grammar;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -16,7 +16,6 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.List;
-import java.util.logging.Logger;
 
 /**
  * @program: assignment-compilers
@@ -118,7 +117,7 @@ public class MainFrame extends JFrame {
 
         scoreTable.setShowGrid(true);
         scoreTable.setGridColor(Color.black); // 默认是白色
-
+        scoreTable.setDefaultRenderer(Object.class, new TableCellTextAreaRenderer());
 //        scoreTable.setCellSelectionEnabled(true);
 
         //如果 JTbale 对象直接添加到 JFrame 中，则表头显示不出来，需要把表格对象放入 JScrollPane 对象中
@@ -330,11 +329,34 @@ public class MainFrame extends JFrame {
 //            System.out.print(operation.get(2)); //操作
 //            System.out.println();
         }
-        
-        scoreTable.getColumnModel().getColumn(0).setPreferredWidth(200);
-        scoreTable.getColumnModel().getColumn(1).setPreferredWidth(200);
-        scoreTable.getColumnModel().getColumn(2).setPreferredWidth(200);
-        scoreTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+
+
+
     }
 
+}
+
+
+class TableCellTextAreaRenderer extends JTextArea implements TableCellRenderer {
+    public TableCellTextAreaRenderer() {
+        setLineWrap(true);
+        setWrapStyleWord(true);
+    }
+
+    public Component getTableCellRendererComponent(JTable table, Object value,
+                                                   boolean isSelected, boolean hasFocus, int row, int column) {
+        // 计算当下行的最佳高度
+        int maxPreferredHeight = 0;
+        for (int i = 0; i < table.getColumnCount(); i++) {
+            setText("" + table.getValueAt(row, i));
+            setSize(table.getColumnModel().getColumn(column).getWidth(), 0);
+            maxPreferredHeight = Math.max(maxPreferredHeight, getPreferredSize().height);
+        }
+
+        if (table.getRowHeight(row) != maxPreferredHeight)  // 少了这行则处理器瞎忙
+            table.setRowHeight(row, maxPreferredHeight);
+
+        setText(value == null ? "" : value.toString());
+        return this;
+    }
 }
