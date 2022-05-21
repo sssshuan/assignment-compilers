@@ -277,6 +277,15 @@ public class MainFrame extends JFrame {
         if(!lr0Parser.accept(input)) {
             System.out.println("语法分析 失败");
             System.out.println(lr0Parser.canonicalCollectionStr());
+        }else {
+            var result = lr0Parser.getResult();
+
+            for (List<String> operation : result) {
+                System.out.print(operation.get(0)); // 状态栈
+                System.out.print(operation.get(1)); // 符号栈
+                System.out.print(operation.get(2)); //操作
+                System.out.println();
+            }
         }
     }
 

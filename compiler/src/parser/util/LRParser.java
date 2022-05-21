@@ -17,7 +17,7 @@ public abstract class LRParser {
     private Stack<Integer> stateStack = new Stack<>(); //状态栈
 
     //记录每次操作，用于显示分析过程
-    private ArrayList<String[]> result = new ArrayList<>();
+    private List<List<String>> result = new ArrayList<>();
 
     public LRParser(Grammar grammar) {
         this.grammar = grammar;
@@ -25,7 +25,7 @@ public abstract class LRParser {
 
     protected abstract void createGoToTable();
 
-    public ArrayList<String[]> getResult() {
+    public List<List<String>> getResult() {
         return result;
     }
 
@@ -182,7 +182,7 @@ public abstract class LRParser {
             record.add(action.toString());
         }
 
-        result.add((String[])(record.toArray(new String[ record.size()])));
+        result.add(record);
     }
 
 }
