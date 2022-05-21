@@ -1,9 +1,6 @@
 package parser.util;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Stack;
+import java.util.*;
 import java.util.logging.Logger;
 
 public abstract class LRParser {
@@ -16,8 +13,11 @@ public abstract class LRParser {
     protected HashMap<String, Action>[] actionTable;
     protected Grammar grammar;
 
-    //
+    private Stack<String> tokenStack = new Stack<>(); //符号栈
+    private Stack<Integer> stateStack = new Stack<>(); //状态栈
 
+    //记录每次操作，用于显示分析过程
+    private ArrayList<String[]> result = new ArrayList<>();
 
     public LRParser(Grammar grammar) {
         this.grammar = grammar;
@@ -25,17 +25,21 @@ public abstract class LRParser {
 
     protected abstract void createGoToTable();
 
+    public ArrayList<String[]> getResult() {
+        return result;
+    }
+
     /**
      * 分析过程
      */
     public boolean accept(ArrayList<String> inputs) {
         inputs.add("$");
         int inputIndex = 0;
-        Stack<String> stack = new Stack<>(); //符号栈
-        Stack<Integer> stateStack = new Stack<>(); //状态栈
+        tokenStack = new Stack<>(); //符号栈
+        stateStack = new Stack<>(); //状态栈
 
         stateStack.push(0);
-        stack.push("$");
+        tokenStack.push("$");
 
         while(inputIndex < inputs.size()){
             int state = stateStack.peek();
@@ -47,20 +51,10 @@ public abstract class LRParser {
                 return false;
             }else if(action.getType() == ActionType.SHIFT){
                 //移入
-                stack.push(nextInput);
+                tokenStack.push(nextInput);
                 stateStack.push(action.getOperand());
-
-for(int i = 0; i < stateStack.size(); ++i) {
-    System.out.print(stateStack.get(i) + " ");
-}
-System.out.print("\t\t");
-for(int i = 0; i < stack.size(); ++i) {
-    System.out.print(stack.get(i) + " ");
-}
-System.out.print("\t\t SHIFT " + action.getOperand());
-System.out.println();
-
                 inputIndex++;
+                recordAction(action);
             }else if(action.getType() == ActionType.REDUCE){
                 //归约
                 int ruleIndex = action.getOperand();
@@ -72,29 +66,19 @@ System.out.println();
                 }
 
                 for(int i=0; i < rightSideLength ; i++){
-                    stack.pop();
+                    tokenStack.pop();
                     stateStack.pop();
                 }
 
                 int nextState = stateStack.peek();
-                stack.push(leftSide);
+                tokenStack.push(leftSide);
                 int variableState = goToTable[nextState].get(leftSide);
                 stateStack.push(variableState);
 
-for(int i = 0; i < stateStack.size(); ++i) {
-    System.out.print(stateStack.get(i) + " ");
-}
-for(int i = 0; i < stack.size(); ++i) {
-    System.out.print(stack.get(i) + " ");
-}
-System.out.print("\t\tREDUCE ");
-System.out.print(rule);
-
-System.out.println();
-
+                recordAction(action);
             }else if(action.getType() == ActionType.ACCEPT){
                 //接受
-                System.out.println("accept");
+                recordAction(action);
                 return true;
             }
         }
@@ -170,4 +154,35 @@ System.out.println();
     public HashMap<String, Integer>[] getGoToTable() {
         return goToTable;
     }
+
+    /**
+     * 记录操作
+     */
+    private void recordAction(Action action) {
+        List<String> record = new ArrayList<>(); //状态栈 符号栈 动作
+
+        StringBuilder builder = new StringBuilder();
+        for(int i = 0; i < stateStack.size(); ++i) {
+            builder.append(stateStack.get(i) + " ");
+        }
+        record.add(builder.toString());
+
+        StringBuilder stackBuilder = new StringBuilder();
+        for(int i = 0; i < tokenStack.size(); ++i) {
+            stackBuilder.append(tokenStack.get(i) + " ");
+        }
+        record.add(stackBuilder.toString()); // 符号栈
+
+        // 动作
+        if(action.getType() == ActionType.REDUCE ) {
+            int ruleIndex = action.getOperand();
+            Rule rule = grammar.getRules().get(ruleIndex);
+            record.add("Reduce " + rule );
+        }else {
+            record.add(action.toString());
+        }
+
+        result.add((String[])(record.toArray(new String[ record.size()])));
+    }
+
 }

@@ -11,6 +11,7 @@ stmt->variable -= expr ;
 stmt->variable += expr ;
 stmt->variable *= expr ;
 stmt->variable /= expr ;
+stmt->expr ;
 variable_declaration -> type null_sign variables ; variable_declaration
 variable_declaration -> epsilon
 type -> int
@@ -22,6 +23,10 @@ variables -> variable
 variable -> id array
 array -> [ expr ] array
 array -> epsilon
+expr->expr --
+expr->expr ++
+expr->++ expr
+expr->-- expr
 expr->expr + expr
 expr->expr - expr
 expr->expr * expr
