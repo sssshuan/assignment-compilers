@@ -1,5 +1,5 @@
 package parser.util;
 
 public enum ActionType {
-    ACCEPT,SHIFT,REDUCE
+    ACCEPT,SHIFT,REDUCE,SKIP
 }

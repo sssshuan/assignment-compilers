@@ -274,18 +274,19 @@ public class MainFrame extends JFrame {
         outputArea.setText(builder.toString());
 
         // 语法分析
+        var result = lr0Parser.getResult();
         if(!lr0Parser.accept(input)) {
+            List<String> e = new ArrayList<>();
+            e.add(""); e.add(""); e.add("失败");
+            result.add(e);
             System.out.println("语法分析 失败");
             System.out.println(lr0Parser.canonicalCollectionStr());
-        }else {
-            var result = lr0Parser.getResult();
-
-            for (List<String> operation : result) {
-                System.out.print(operation.get(0)); // 状态栈
-                System.out.print(operation.get(1)); // 符号栈
-                System.out.print(operation.get(2)); //操作
-                System.out.println();
-            }
+        }
+        for (List<String> operation : result) {
+            System.out.print(operation.get(0)); // 状态栈
+            System.out.print(operation.get(1)); // 符号栈
+            System.out.print(operation.get(2)); //操作
+            System.out.println();
         }
     }
 

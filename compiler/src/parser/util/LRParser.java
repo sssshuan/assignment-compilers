@@ -1,5 +1,8 @@
 package parser.util;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -18,6 +21,7 @@ public abstract class LRParser {
 
     //记录每次操作，用于显示分析过程
     private List<List<String>> result = new ArrayList<>();
+    FileOutputStream outputStream; //输出错误
 
     public LRParser(Grammar grammar) {
         this.grammar = grammar;
@@ -33,6 +37,12 @@ public abstract class LRParser {
      * 分析过程
      */
     public boolean accept(ArrayList<String> inputs) {
+        try {
+            outputStream = new FileOutputStream("error.txt");
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
         inputs.add("$");
         int inputIndex = 0;
         tokenStack = new Stack<>(); //符号栈
@@ -48,7 +58,12 @@ public abstract class LRParser {
             if(action == null){
                 // 表项为空
                 Logger.getGlobal().severe("表项<" + state + ","+ nextInput + ">为空");
-                return false;
+
+                String errorMsg = "error: 状态 \"" + state + "\", 符号栈顶: \"" + tokenStack.peek() + "\", 输入: \"" + nextInput + "\", 分析表中没有对应规则, 丢弃该输入\n";
+                saveErrorToFile(errorMsg);
+                inputIndex++; //跳过该输入
+                recordAction(new Action(ActionType.SKIP, 0));
+//                return false;
             }else if(action.getType() == ActionType.SHIFT){
                 //移入
                 tokenStack.push(nextInput);
@@ -82,6 +97,7 @@ public abstract class LRParser {
                 return true;
             }
         }
+        //失败
         return false;
     }
 
@@ -161,28 +177,44 @@ public abstract class LRParser {
     private void recordAction(Action action) {
         List<String> record = new ArrayList<>(); //状态栈 符号栈 动作
 
-        StringBuilder builder = new StringBuilder();
-        for(int i = 0; i < stateStack.size(); ++i) {
-            builder.append(stateStack.get(i) + " ");
+        if(action.getType() == ActionType.SKIP) {
+            record.add("");
+            record.add("");
+            record.add("删除输入符号");
         }
-        record.add(builder.toString());
+        else {
+            StringBuilder builder = new StringBuilder();
+            for (int i = 0; i < stateStack.size(); ++i) {
+                builder.append(stateStack.get(i) + " ");
+            }
+            record.add(builder.toString());
 
-        StringBuilder stackBuilder = new StringBuilder();
-        for(int i = 0; i < tokenStack.size(); ++i) {
-            stackBuilder.append(tokenStack.get(i) + " ");
-        }
-        record.add(stackBuilder.toString()); // 符号栈
+            StringBuilder stackBuilder = new StringBuilder();
+            for (int i = 0; i < tokenStack.size(); ++i) {
+                stackBuilder.append(tokenStack.get(i) + " ");
+            }
+            record.add(stackBuilder.toString()); // 符号栈
 
-        // 动作
-        if(action.getType() == ActionType.REDUCE ) {
-            int ruleIndex = action.getOperand();
-            Rule rule = grammar.getRules().get(ruleIndex);
-            record.add("Reduce " + rule );
-        }else {
-            record.add(action.toString());
+            // 动作
+            if (action.getType() == ActionType.REDUCE) {
+                int ruleIndex = action.getOperand();
+                Rule rule = grammar.getRules().get(ruleIndex);
+                record.add("Reduce " + rule);
+            } else {
+                record.add(action.toString());
+            }
         }
 
         result.add(record);
+    }
+
+    private void saveErrorToFile(String msg) {
+        try {
+            outputStream.write(msg.getBytes());
+            outputStream.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 }
