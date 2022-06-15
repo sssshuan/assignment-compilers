@@ -8,12 +8,13 @@ public class Real extends Token {
         value = v;
     }
 
-    public String toString() {
-        return "<real, " + value + ">";
+    @Override
+    public String first() {
+        return "real";
     }
 
     @Override
-    public String desc() {
-        return "real";
+    public String second() {
+        return "" + value;
     }
 }

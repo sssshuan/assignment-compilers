@@ -8,12 +8,13 @@ public class Num extends Token {
         value = v;
     }
 
-    public String toString() {
-        return "<num, " + value + ">";
+    @Override
+    public String first() {
+        return "num";
     }
 
     @Override
-    public String desc() {
-        return "num";
+    public String second() {
+        return "" + value;
     }
 }

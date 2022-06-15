@@ -1,5 +1,9 @@
 package parser.util;
 
+import lexer.Token;
+import semantic.Semantic;
+
+import javax.swing.table.DefaultTableModel;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -7,6 +11,7 @@ import java.util.*;
 import java.util.logging.Logger;
 
 public abstract class LRParser {
+    private Semantic semantic;
 
     //在数组中的索引 与 状态 对应
     //键为非终结符，值为要移入的状态
@@ -25,6 +30,7 @@ public abstract class LRParser {
 
     public LRParser(Grammar grammar) {
         this.grammar = grammar;
+        semantic = new Semantic(grammar, new DefaultTableModel(), new DefaultTableModel());
     }
 
     protected abstract void createGoToTable();
@@ -36,7 +42,7 @@ public abstract class LRParser {
     /**
      * 分析过程
      */
-    public boolean accept(ArrayList<String> inputs) {
+    public boolean accept(ArrayList<Token> inputs) {
         try {
             outputStream = new FileOutputStream("error.txt");
         } catch (FileNotFoundException e) {
@@ -44,7 +50,7 @@ public abstract class LRParser {
         }
         result = new ArrayList<>();
 
-        inputs.add("$");
+        inputs.add(new Token('$'));
         int inputIndex = 0;
         tokenStack = new Stack<>(); //符号栈
         stateStack = new Stack<>(); //状态栈
@@ -54,7 +60,8 @@ public abstract class LRParser {
 
         while(inputIndex < inputs.size()){
             int state = stateStack.peek();
-            String nextInput = inputs.get(inputIndex);
+            Token nextInputSymbol = inputs.get(inputIndex); //下一个输入
+            String nextInput = nextInputSymbol.first(); //取输入的字符串(主要是 id num比较特殊，语法分析用id，而id的词法值在second，用于语义)
             Action action = actionTable[state].get(nextInput);
             if(action == null){
                 // 表项为空
@@ -71,6 +78,8 @@ public abstract class LRParser {
                 stateStack.push(action.getOperand());
                 inputIndex++;
                 recordAction(action);
+//    Logger.getGlobal().info(nextInput+"\t"+nextInputSymbol.second());
+                semantic.add(nextInput, nextInputSymbol.second()); // 这里还要理解下
             }else if(action.getType() == ActionType.REDUCE){
                 //归约
                 int ruleIndex = action.getOperand();
@@ -91,10 +100,13 @@ public abstract class LRParser {
                 int variableState = goToTable[nextState].get(leftSide);
                 stateStack.push(variableState);
 
+        semantic.analyse(ruleIndex, rightSideLength);
+
                 recordAction(action);
             }else if(action.getType() == ActionType.ACCEPT){
                 //接受
                 recordAction(action);
+        semantic.print();
                 return true;
             }
         }

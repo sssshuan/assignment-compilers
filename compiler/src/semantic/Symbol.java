@@ -2,14 +2,15 @@ package semantic;
 
 import java.util.ArrayList;
 
+//符号栈中的符号封装 参考ppt 5c结尾
 public class Symbol {
-    private String first;
-    private String second;
-    private String addr;
-    private ArrayList<Integer> trueList;    //用arraylist充当数据结构
+    private String first; // first second 对应 词法单元 <first, second> 如 <id, x>
+    private String second; // 词法单元符号的值（id的lexeme，num的value）
+    private String addr; // 用于指示一个标识符(临时变量？)
+    private ArrayList<Integer> trueList;    //用arraylist充当数据结构  存指令的行号（后续backpatch填goto的标号到这些行）
     private ArrayList<Integer> falseList;
-    private int instr; //指令标号？
-    private ArrayList<Integer> nextList; //
+    private int instr; //指令标号
+    private ArrayList<Integer> nextList;
 
     public Symbol() { }
 

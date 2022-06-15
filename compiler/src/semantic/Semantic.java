@@ -1,15 +1,18 @@
 package semantic;
 
+import parser.util.Grammar;
+
 import javax.swing.table.DefaultTableModel;
 import java.util.ArrayList;
 import java.util.Stack;
-
 
 public class Semantic {
     private Stack<Symbol> symbols;
     private ArrayList<Code> codes;
     private ArrayList<Integer> arrs;
-    private AnalyseList analyseList;
+//    private AnalyseList analyseList;
+    private Grammar grammar;
+
     private int tempNumber;
     private int cnt;
     private DefaultTableModel tbmodel_expanded_stack;
@@ -26,10 +29,10 @@ public class Semantic {
         cnt = 0;
     }
 
-    public Semantic(AnalyseList analyseList, DefaultTableModel tbmodel_expanded_stack,
+    public Semantic(Grammar grammar, DefaultTableModel tbmodel_expanded_stack,
                     DefaultTableModel tbmodel_addr_code){      //有参构造函数，传入两个表
         this();
-        this.analyseList = analyseList;
+        this.grammar = grammar;
         this.tbmodel_addr_code = tbmodel_addr_code;
         this.tbmodel_expanded_stack = tbmodel_expanded_stack;
     }
@@ -51,13 +54,19 @@ public class Semantic {
     }     //出栈一次
 
 
-    public void analyse(int res, int l){    //res为第几个产生式
-        String left = analyseList.productions.get(res).returnLeft();   //返回文法的左部
+    /**
+     *
+     * @param res res为第几个产生式
+     * @param l 规则右部几个词法单元？
+     */
+    public void analyse(int res, int l){
+        //归约后 弹出相应的右部符号 然后压入左部符号
+        String left = grammar.getRules().get(res).getLeftSide();//analyseList.productions.get(res).returnLeft();   //返回文法的左部
 //        ArrayList<Symbol> out = new ArrayList<>();
         if(res == 30 || res == 31){
             // factor -> id | number
             String tmp = symbols.peek().getSecond();
-            for(int i = 0;i < l;i++)
+            for(int i = 0;i < l;i++) // 这边不是要么0要么1吗？ epsilon规则对应l为0
                 symbols.pop();
             symbols.push(new Symbol(left, "null", tmp));   //second放到addr
         }
@@ -91,6 +100,7 @@ public class Semantic {
             symbols.push(new Symbol(left, "null", tmp));  //addr放到addr
         } else if(res >= 24 && res <= 28){
             // 四则运算 E = E op E
+            // 此时栈顶是 E1 op E2，弹出后生成代码并把临时变量压栈
             String factor = symbols.pop().getAddr();
             String op = symbols.pop().getFirst();
             String term1 = symbols.pop().getAddr();
@@ -173,7 +183,7 @@ public class Semantic {
             symbols.pop();
             String id = symbols.pop().getSecond();
             symbols.push(new Symbol(left,id,L));
-            System.out.println(id);
+//            System.out.println(id);
             if (arraysizea==1&&id.equals("a")) { 
             	py = "4";
             	arraysizea--;
@@ -313,7 +323,7 @@ public class Semantic {
             for (int i = 0; i < list.size(); i++) {
                 int j = list.get(i);
                 //System.out.println(1);
-                codes.get(j).setResult(String.valueOf(m + 100));
+                codes.get(j).setResult(String.valueOf(m + 100)); //填入指令标号
             }
         }
     }
@@ -401,8 +411,10 @@ public class Semantic {
             }else
                 continue;
             //System.out.println(String.valueOf(addr)+": "+s);
+System.out.println(addr+": " + String.valueOf(s));
             tbmodel_addr_code.addRow(new String[]{addr+": ", String.valueOf(s)});    //最后实际在这里输出
         }
+System.out.println((codes.size()+100)+": "+ " ");
         tbmodel_addr_code.addRow(new String[]{(codes.size()+100)+": ", " "});     //这个是输出大小的
         //System.out.println(codes.size()+100+": ");
     }

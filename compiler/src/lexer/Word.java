@@ -13,8 +13,12 @@ public class Word extends Token {
     }
 
     @Override
-    public String desc() {
+    public String first() {
         return tag == Tag.ID ? "id" : lexeme;
+    }
+
+    public String second() {
+        return lexeme;
     }
 
     public static final Word

@@ -1,5 +1,6 @@
 package semantic;
 
+//三地址码
 public class Code {
     private String op, arg1, arg2, result;
     public Code() { }

@@ -104,6 +104,10 @@ public class LR0Parser extends LRParser {
                                 System.out.println("\"" + action + "\" conflict with \"" + actionTable[i].get(str) + "\" in state " + i);
                                 if(actionTable[i].get(str).getType() == ActionType.REDUCE) {
                                     //归约/归约冲突 错误
+                                    if(rule.getLeftSide().equals("N")) {
+                                        actionTable[i].put(str, action);
+                                        continue;
+                                    }
                                     return false;
                                 }else {
                                     // 移入/归约 冲突

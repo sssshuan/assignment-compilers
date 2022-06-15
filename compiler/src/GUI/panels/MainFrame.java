@@ -208,42 +208,6 @@ public class MainFrame extends JFrame {
         fos.close();
     }
 
-//    /**
-//     * 符号表
-//     */
-//    private void showTable() {
-//        HashSet<String> terminals = new HashSet<>(lr0Parser.getGrammar().getTerminals());//终结符集
-//        terminals.add("$");
-//        HashSet<String> variables = lr0Parser.getGrammar().getVariables(); //非终结符集
-//        HashMap<String, Action>[] actionTable = lr0Parser.getActionTable(); //分析表终结符部分
-//        HashMap<String, Integer>[] gotoTable = lr0Parser.getGoToTable(); //分析表非终结符部分
-//
-//        System.out.print("\t");
-//        for (String terminal : terminals) {
-//            //第一行，显示全部终结符
-//            System.out.print(terminal + "\t");
-//        }
-//        for (String variable : variables) {
-//            //第一行，显示全部非终结符
-//            System.out.print(variable + "\t");
-//        }
-//        System.out.print("\n");
-//
-//        //第二行到最后一行 一行一个状态
-//        for (int state = 0; state < actionTable.length; state++) {
-//            System.out.print(state + "\t");
-//            for (String terminal : terminals) {
-//                String text = actionTable[state].get(terminal) == null ? "" : actionTable[state].get(terminal).toString();
-//                System.out.print(text + "\t");
-//            }
-//            for (String variable : variables) {
-//                String text = gotoTable[state].get(variable) == null ? "" : gotoTable[state].get(variable).toString();
-//                System.out.print(text + "\t");
-//            }
-//            System.out.print("\n");
-//        }
-//    }
-
     private void initParser() {
         FileInputStream inputStream = null;
         FileOutputStream outputStream = null; // 保存分析表 方便出现错误时查看
@@ -281,14 +245,14 @@ public class MainFrame extends JFrame {
     private void startAnalyze(String sourceCode) throws IOException {
         Lexer lexer = new Lexer(sourceCode); // 词法分析器
         StringBuilder builder = new StringBuilder(); //存词法分析显示结果
-        ArrayList<String> input = new ArrayList<>(); //词法分析结果（满足语法分析的格式）
+        ArrayList<Token> input = new ArrayList<>(); //词法分析结果（满足语法分析的格式）
         // 识别词法单元
         while (true) {
             Token token = lexer.scan();
             if (token.tag == Tag.CODE_END) {
                 break;
             } else if (token.tag != Tag.ERROR) {
-                input.add(token.desc());
+                input.add(token);
                 builder.append(token + "\n");
             }
         }
