@@ -1,127 +1,178 @@
-(00) S' -> S
+(00) S->program id { variable_declaration stmts }
+{} //这里是不是应该使用全局变量，将类型传过去？
 
-(01) S -> program id ; compound_stmt .
+(01) stmts->stmts1 M stmt
+{ backpatch(stmts1.nextlist,M.instr);
+  stmts.nextlist = stmt.nextlist; }
 
-(02) compound_stmt -> begin stmts M end
-{ backpatch(stmts.nextlist, M.instr); }
+(02) stmts->epsilon
 
-(03) stmts -> stmt
-{ stmts.nextlist = stmt.nextlist; }
+(03) stmt->{ stmts }
+{ stmt.nextlist = stmts.nextlist; }
 
-(04) stmts -> stmts1 M ; stmt
-{ backpatch(stmts1.nextlist, M.instr);
-  stmts.nextlist = stmt.nextlist ; }
-
-(05) stmt -> init
-
-(06) init -> id := expr
-{ gen(top.get(id.lexeme) '=' expr.addr); }
-
-(07) stmt -> compound_stmt
-
-(08) stmt -> if_stmt
-{ stmt.nextlist = if_stmt.nextlist; }
-
-(09) stmt -> for_stmt
-{ stmt.nextlist = for_stmt.nextlist; }
-
-(10) stmt -> while M1 bool do M2 stmt1
-{ backpatch(stmt1.nextlist, M1.instr);
-  backpatch(bool.truelist, M2.instr);
-  stmt.nextlist = bool.falselist;
+(04) stmt->while M1 ( expr ) M2 stmt1
+{ backpatch(stmt1.nextlist,M1.instr);
+  backpatch(expr.truelist,M2.instr);
+  stmt.nextlist = stmt1.nextlist;
   gen('goto' M1.instr); }
 
-(11) stmt -> epsilon
+(05) stmt->if ( expr ) M stmt1
+{ backpatch(expr.truelist ,M.instr);
+  stmt.nextlist = merge(expr.falselist,stmt1.nextlist); }
 
-(12) if_stmt -> if bool then M stmt
-{ backpatch(bool.truelist, M.instr);
-  if_stmt.nextlist = merge(bool.falselist, stmt.nextlist); }
+(06) stmt->if ( expr ) M1 stmt1 N else M2 stmt2
+{ backpatch(expr.truelist,M1.instr);
+  backpatch(expr.falselist,M2.instr);
+  temp = merge(stmt1.nextlist,N.nextlist);
+  stmt.nextlist = merge(temp,stmt2.nextlist); }
 
-(13) if_stmt -> if bool then M1 stmt1 N else M2 stmt2
-{ backpatch(bool.truelist, M1.instr);
-  backpatch(bool.falselist, M2.instr);
-  temp = merge(stmt1.nextlist, N.nextlist);
-  if_stmt.nextlist = merge(temp, stmt2.nextlist); }
+(07) stmt->for ( id in num .. num1 N ) M stmt1
+{ t = new Temp();
+  gen(t '=' id.addr '+' 1);
+  gen(id.addr '=' t);
+  temp = nextinstr;
+  gen('if' id.addr '<=' num1.value 'goto' M.instr);
+  stmt.nextlist = makelist(nextinstr);
+  gen('goto _');
+  backpatch(N.nextlist,nextinstr);
+  gen(id.addr '=' num.value);
+  gen('goto' temp); } //这里还是有点搞不懂
 
-(14) for_stmt -> for inc do M1 stmt M2
-{ backpatch(stmt.nextlist, M2.instr);
-  backpatch(inc.truelist, M1.instr);
-  for_stmt.nextlist = inc.falselist;
-  temp = new Temp();
-  gen(temp '=' top.get(id.lexeme) '+1');
-  gen(top.get(id.lexeme) '=' temp);
-  gen('goto ' inc.instr); }
+(08) stmt->variable = expr ;
+{ gen(variable.addr '=' expr.addr);
+  top.putNS(variable.lexeme); }
 
-(15) for_stmt -> for dec do M1 stmt M2
-{ backpatch(stmt.nextlist, M2.instr);
-  backpatch(dec.truelist, M1.instr);
-  for_stmt.nextlist = dec.falselist;
-  temp = new Temp();
-  gen(temp '=' top.get(id.lexeme) '-1');
-  gen(top.get(id.lexeme) '=' temp);
-  gen('goto ' dec.instr); }
+(09) stmt->variable -= expr ;
+{ gen(variable.addr '-=' expr.addr);
+  top.putNS(variable.lexeme); }
 
-(16) inc -> init to M expr
-{ inc.truelist = makelist(M.instr);
-  inc.falselist = makelist(M.instr + 1);
-  inc.instr = M.instr;
-  gen('if' top.get(id.lexeme) '<=' expr.addr 'goto _');
-  gen('goto _'); }
+(10) stmt->variable += expr ;
+{ gen(variable.addr '+=' expr.addr);
+  top.putNS(variable.lexeme); }
 
-(17) dec -> init downto M expr
-{ dec.truelist = makelist(M.instr);
-  dec.falselist = makelist(M.instr + 1);
-  dec.instr = M.instr;
-  gen('if' top.get(id.lexeme) '>=' expr.addr 'goto _');
-  gen('goto _'); }
+(11) stmt->variable *= expr ;
+{ gen(variable.addr '*=' expr.addr);
+  top.putNS(variable.lexeme); }
 
-(18) bool ->  expr1 > expr2
-{ bool.truelist = makelist(nextinstr);
-  bool.falselist = makelist(nextinstr + 1);
-  gen('if' expr1.addr '>' expr2.addr 'goto _');
-  gen('goto _'); }
+(12) stmt->variable /= expr ;
+{ gen(variable.addr '/=' expr.addr);
+  top.putNS(variable.lexeme); }
 
-(19) bool -> expr1 < expr2
-{ bool.truelist = makelist(nextinstr);
-  bool.falselist = makelist(nextinstr + 1);
+(13) stmt->expr ;
+
+(14) variable_declaration -> type null_sign variables ; variable_declaration
+(15) variable_declaration -> epsilon
+(16) type -> int
+(17) type -> float
+(18) null_sign -> ?
+{ ns = 1; }
+
+(19) null_sign -> epsilon
+{ ns = 0; }
+
+(20) variables -> variable , variables1
+
+(21) variables -> variable
+
+(22) variable -> id array
+{ top.put(id.lexeme,array.type,offset,ns,array.width);
+  offset = offset + array.width; }
+
+(23) array -> [ expr ] array1
+{ array.type = array(expr.value,array1.type); }
+
+(24) array -> epsilon
+{ array.type = type;
+  array.width = width; }
+
+(25) expr->expr + expr
+{ expr.addr = new Temp();
+  gen(expr.addr '=' expr1.addr '+' expr2.addr);
+}
+
+(26) expr->expr - expr
+{ expr.addr = new Temp();
+  gen(expr.addr '=' expr1.addr '-' expr2.addr);
+}
+
+(27) expr->expr * expr
+{ expr.addr = new Temp();
+  gen(expr.addr '=' expr1.addr '*' expr2.addr);
+}
+
+(28) expr->expr / expr
+{ expr.addr = new Temp();
+  gen(expr.addr '=' expr1.addr '/' expr2.addr);
+}
+
+(29) expr->expr ^ factor
+{ expr.addr = new Temp();
+  gen(expr.addr '=' expr1.addr '^' factor.addr); }
+
+(30) expr->factor
+{ expr.addr = factor.addr; }
+
+(31) expr->expr1 < expr2
+{ expr.truelist = makelist(nextinstr);
+  expr.falselist = makelist(nextinstr + 1);
   gen('if' expr1.addr '<' expr2.addr 'goto _');
   gen('goto _'); }
 
-(20) expr -> expr1 + expr2
-{ expr.addr = new Temp();
-  gen(expr.addr '=' expr1.addr '+' expr2.addr); }
+(32) expr->expr > expr
+{ expr.truelist = makelist(nextinstr);
+  expr.falselist = makelist(nextinstr + 1);
+  gen('if' expr1.addr '>' expr2.addr 'goto _');
+  gen('goto _'); }
 
-(21) expr -> expr - expr
-{ expr.addr = new Temp();
-  gen(expr.addr '=' expr1.addr '-' expr2.addr); }
+(33) expr->expr != expr
+{ expr.truelist = makelist(nextinstr);
+  expr.falselist = makelist(nextinstr + 1);
+  gen('if' expr1.addr '!=' expr2.addr 'goto _');
+  gen('goto _'); }
 
-(22) expr -> expr * expr
-{ expr.addr = new Temp();
-  gen(expr.addr '=' expr1.addr '*' expr2.addr); }
+(34) expr->expr == expr
+{ expr.truelist = makelist(nextinstr);
+  expr.falselist = makelist(nextinstr + 1);
+  gen('if' expr1.addr '==' expr2.addr 'goto _');
+  gen('goto _'); }
 
-(23) expr -> expr / expr
-{ expr.addr = new Temp();
-  gen(expr.addr '=' expr1.addr '/' expr2.addr); }
+(35) expr->expr <= expr
+{ expr.truelist = makelist(nextinstr);
+  expr.falselist = makelist(nextinstr + 1);
+  gen('if' expr1.addr '<=' expr2.addr 'goto _');
+  gen('goto _'); }
 
-(24) expr -> expr ^ factor
-{ expr.addr = new Temp();
-  gen(expr.addr '=' expr1.addr '^' expr2.addr); }
+(36) expr->expr >= expr
+{ expr.truelist = makelist(nextinstr);
+  expr.falselist = makelist(nextinstr + 1);
+  gen('if' expr1.addr '>=' expr2.addr 'goto _');
+  gen('goto _'); }
 
-(25) expr -> factor
-{ expr.addr = factor.addr; }
+(37) expr->expr1 && M expr2
+{ backpatch(expr1.truelist,M.instr);
+  expr.truelist = expr2.truelist;
+  expr.falselist = merge(expr1.falselist,expr2.falselist); }
 
-(26) factor -> id
-{ factor.addr = top.get(id.lexeme); }
+(38) expr->expr1 || M expr2
+{ backpatch(expr1.falselist,M.instr);
+  expr.falselist = expr2.falselist;
+  expr.truelist = merge(expr1.truelist,expr2.truelist); }
 
-(27) factor -> num
+(39) factor->variable
+{ factor.addr = top.get(variable.lexeme); }
+
+(40) factor->num
 { factor.addr = top.get(num.lexeme); }
 
-(28) factor -> ( expr )
+(41) factor->real
+{ factor.addr = top.get(real.lexeme); }
+
+(42) factor->( expr )
 { factor.addr = expr.addr; }
 
-(29) M -> epsilon
+(43) M -> epsilon
 { M.instr = nextinstr; }
 
-(30) N -> epsilon
+(44) N -> epsilon
 { N.nextlist = makelist(nextinstr);
   gen('goto _'); }

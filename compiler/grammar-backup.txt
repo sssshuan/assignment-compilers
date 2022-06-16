@@ -1,7 +1,7 @@
-S->program id { variable_declaration stmts M }
+S->program id { variable_declaration stmts }
 stmts->stmts M stmt
-stmts->epsilon
-stmt->{ stmts M }
+stmts->stmt
+stmt->{ stmts }
 stmt->while M ( expr ) M stmt
 stmt->if ( expr ) M stmt
 stmt->if ( expr ) M stmt N else M stmt
@@ -11,7 +11,6 @@ stmt->variable -= expr ;
 stmt->variable += expr ;
 stmt->variable *= expr ;
 stmt->variable /= expr ;
-stmt->expr ;
 variable_declaration -> type null_sign variables ; variable_declaration
 variable_declaration -> epsilon
 type -> int

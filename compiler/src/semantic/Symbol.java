@@ -9,7 +9,7 @@ public class Symbol {
     private String addr; // 用于指示一个标识符(临时变量？)
     private ArrayList<Integer> trueList;    //用arraylist充当数据结构  存指令的行号（后续backpatch填goto的标号到这些行）
     private ArrayList<Integer> falseList;
-    private int instr; //指令标号
+    private int instr; // 用于占位符M记住指令标号
     private ArrayList<Integer> nextList; //控制流语句，带有一个未填充的跳转链，
 
     public Symbol() { }

@@ -5,6 +5,7 @@ import parser.util.Grammar;
 import javax.swing.table.DefaultTableModel;
 import java.util.ArrayList;
 import java.util.Stack;
+import java.util.logging.Logger;
 
 public class Semantic {
     private Stack<Symbol> symbols;
@@ -21,6 +22,11 @@ public class Semantic {
     public int arraysizeb = 2;
     public int arraysizec = 3;
     public String py;
+
+    private String type;
+    private int width = 0;
+    private int ns = 0;
+
     public Semantic() {      //无参构造函数
         this.symbols = new Stack<>();
         this.codes = new ArrayList<>();
@@ -42,7 +48,12 @@ public class Semantic {
     }    //返回t1,t2之类的东西
 
     public void add(String first, String second){
+//        System.out.println("-------------");
+//        printSymbol();
         symbols.push(new Symbol(first, second, "null"));
+//        System.out.println("shift(add symbol): " + first + "\t" + second);
+//        printSymbol();
+//        System.out.println("-------------");
 //        Symbol t = symbols.peek();
 //        tbmodel_expanded_stack.addRow(new String[]{t.getFirst(), t.getSecond(), t.getAddr(),
 //                printList(t.getTrueList()), printList(t.getFalseList()), printList(t.getNextList())});
@@ -54,6 +65,13 @@ public class Semantic {
     }     //出栈一次
 
 
+    //方便排查错误
+    private void printSymbol() {
+        for(Symbol symbol : symbols) {
+            System.out.print("\t" + symbol.getFirst());
+        }
+        System.out.println();
+    }
     /**
      *
      * @param res res为第几个产生式
@@ -61,64 +79,235 @@ public class Semantic {
      */
     public void analyse(int res, int l){
         //归约后 弹出相应的右部符号 然后压入左部符号
-        String left = grammar.getRules().get(res).getLeftSide();//analyseList.productions.get(res).returnLeft();   //返回文法的左部
-//        ArrayList<Symbol> out = new ArrayList<>();
-        if(res == 30 || res == 31){
-            // factor -> id | number
-            String tmp = symbols.peek().getSecond();
-            for(int i = 0;i < l;i++) // 这边不是要么0要么1吗？ epsilon规则对应l为0
-                symbols.pop();
-            symbols.push(new Symbol(left, "null", tmp));   //second放到addr
+        String left = grammar.getRules().get(res).getLeftSide(); //返回文法的左部
+
+//        printSymbol();
+//        System.out.println( "ruleIndex: " + res + ", rightSideLength: " + l + ", left = " + left);
+
+        if (res == 1) {
+            // S->program id { variable_declaration stmts }
+            symbols.pop();
+            ArrayList<Integer> stmts_nextList = symbols.pop().getNextList();
+            backpatch(stmts_nextList, nextInstr());
+            symbols.pop();
+            symbols.pop();
+            symbols.pop();
+            symbols.pop();
         }
         else if(res == 2){
-            //stmts -> { stmt M }
+            //stmts -> stmts1 M stmt
+            ArrayList<Integer> stmt = symbols.pop().getNextList();
+            int M = symbols.pop().getInstr();
+            ArrayList<Integer> stmts1 = symbols.pop().getNextList();
+            backpatch(stmts1, M);
+            // stmts.nextList = stmt.nextList
+            symbols.push(new Symbol(left, "null", "null", null, null, -1, stmt));
+        }
+        //stmts -> stmt
+        else if(res == 3){
+            ArrayList<Integer> stmt_nextList= symbols.pop().getNextList();
+            symbols.push(new Symbol(left, "null", "null", null, null, -1, stmt_nextList));
+        }
+        else if(res == 4){
+            // stmt->{ stmts }
             symbols.pop();
-            int M =symbols.pop().getInstr();
-            ArrayList<Integer> stmts = symbols.pop().getNextList();
+            ArrayList<Integer> stmts_nextList = symbols.pop().getNextList();
             symbols.pop();
-            backpatch(stmts,M);
+            symbols.push(new Symbol(left, "null", "null", null, null, -1, stmts_nextList));
+        }
+        else if(res == 5){
+            // stmt -> while M1 ( expr ) M2 stmt1
+            ArrayList<Integer> stmt1_nextList = symbols.pop().getNextList();
+            int M2 = symbols.pop().getInstr();
+            symbols.pop();
+            ArrayList<Integer> trueList = symbols.peek().getTrueList();    //有碰到bool表达式才这样
+            ArrayList<Integer> falseList = symbols.pop().getFalseList();
+            symbols.pop();
+            int M1 = symbols.pop().getInstr();
+            symbols.pop();
+            backpatch(stmt1_nextList,M1);
+            backpatch(trueList,M2);
+            symbols.push(new Symbol(left, "null", "null", null, null, -1, falseList));
+            codes.add(new Code("goto", "null", "null", String.valueOf(M1 + 100)));
+        }
+        else if(res == 6){
+            // stmt-> if ( expr ) M stmt
+            ArrayList<Integer> stmt1_nextList = symbols.pop().getNextList();
+            int M = symbols.pop().getInstr();     //M的作用是得到下一条跳转地址
+            symbols.pop();
+            ArrayList<Integer> trueList = symbols.peek().getTrueList();
+            ArrayList<Integer> falseList = symbols.pop().getFalseList();
+            symbols.pop();
+            symbols.pop();
+            backpatch(trueList,M);
+            ArrayList<Integer> nextList = merge(falseList,stmt1_nextList);
+            symbols.push(new Symbol(left, "null", "null", null, null, -1, nextList));
+        }
+        else if(res == 7){
+            // stmt -> if ( expr ) M1 stmt1 N else M2 stmt2
+            ArrayList<Integer> stmt2_nextList = symbols.pop().getNextList();
+            int M2 = symbols.pop().getInstr();
+            symbols.pop();
+            ArrayList<Integer> N_nextList = symbols.pop().getNextList();     //N的处理与M稍微不同
+            ArrayList<Integer> stmt1_nextList = symbols.pop().getNextList();
+            int M1 = symbols.pop().getInstr();
+            symbols.pop();
+            ArrayList<Integer> trueList = symbols.peek().getTrueList();
+            ArrayList<Integer> falseList = symbols.pop().getFalseList();
+            symbols.pop();
+            symbols.pop();
+            backpatch(trueList,M1);
+            backpatch(falseList,M2);
+            ArrayList<Integer> nextList = merge(stmt1_nextList, N_nextList);
+            nextList = merge(nextList, stmt2_nextList);
+            symbols.push(new Symbol(left, "null", "null", null, null, -1, nextList));
+        }
+        else if (res == 8) {
+            // stmt->for ( id in num .. num1 N ) M stmt1
+            symbols.pop(); // stmt1 没用吗？
+            int M_instr = symbols.pop().getInstr();
+            symbols.pop();
+            ArrayList<Integer> N_nextList = symbols.pop().getNextList();
+            String num1_value = symbols.pop().getSecond();
+            symbols.pop();
+            String num_value = symbols.pop().getSecond();
+            symbols.pop();
+            String id_addr = symbols.pop().getSecond();
+            symbols.pop();
+            symbols.pop();
+
+            String t = getTemp();
+            codes.add(new Code("+", id_addr, "1", t));
+            codes.add(new Code("=", t, "null", id_addr));
+            int temp = nextInstr(); // 记住判断语句的位置
+            codes.add(new Code("<=", id_addr, num1_value, String.valueOf(M_instr + 100)));
+
+            ArrayList<Integer> nextList = new ArrayList<Integer>();
+            nextList.add(nextInstr());
+            symbols.push(new Symbol(left, "null", "null", null, null, -1, nextList));
+            codes.add(new Code("goto", "null", "null", "goto _"));
+            backpatch(N_nextList, nextInstr());
+            codes.add(new Code("=", ""+num_value, "null", id_addr)); // 初始值
+            codes.add(new Code("goto", "null", "null", ""+temp));
+        }
+        else if (res == 9) {
+            // stmt->variable = expr ;
+            symbols.pop();
+            String expr = symbols.pop().getAddr();   //表达式得到的是Addr
+            String op = symbols.pop().getFirst();   // =
+//            String id = symbols.pop().getSecond();    //id用second
+            String id = symbols.pop().getAddr();
+            Logger.getGlobal().info("测试1: " + id);
+            symbols.push(new Symbol(left, "null", id));
+            codes.add(new Code(op, expr, "null", id));
+        }
+        else if(res >= 10 && res <= 13) {
+            // stmt->variable += expr ;
+            symbols.pop();
+            String expr = symbols.pop().getAddr();
+            String op = symbols.pop().getFirst();   //得到运算符
+//            String id = symbols.pop().getSecond();   //得到id
+            String id = symbols.pop().getAddr();
+            Logger.getGlobal().info("测试2: " + id);
+            symbols.push(new Symbol(left, "null", id));
+            codes.add(new Code(op,id,expr,id));
+        }
+        else if (res == 14) {
+            // variable_declaration -> type null_sign variables ; variable_declaration
+            //ppt 6b 第6
+            symbols.pop();
+            symbols.pop();
+            Symbol variables = symbols.pop();
+            Symbol null_sign = symbols.pop();
+            Symbol type = symbols.pop();
             symbols.push(new Symbol(left, "null", "null"));
         }
-        //stmt -> stmts
-        else if(res == 3){
-            ArrayList<Integer> stmts= symbols.pop().getNextList();
-            symbols.push(new Symbol(left, "null", "null", null, null, -1, stmts));
+        else if (res == 15) {
+            // variable_declaration -> epsilon
+            symbols.push(new Symbol(left, "null", "null"));
         }
-        //stmt -> stmt M stmts
-        else if(res == 4){
-            ArrayList<Integer> stmts= symbols.pop().getNextList();
-            int M = symbols.pop().getInstr();
-            ArrayList<Integer> stmt= symbols.pop().getNextList();
-            backpatch(stmt,M);
-            symbols.push(new Symbol(left, "null", "null", null, null, -1, stmts));
+        else if (res == 16) {
+            // type -> int
+            symbols.pop();
+            type = "int";
+            width = 4;
+            symbols.push(new Symbol(left, "null", "null"));
         }
-        else if(res == 29){
+        else if (res == 17) {
+            // type -> float
+            symbols.pop();
+            type = "float";
+            width = 8;
+            symbols.push(new Symbol(left, "null", "null"));
+        }
+        else if (res == 18) {
+            // null_sign -> ?
+            symbols.pop();
+            ns = 1;
+            symbols.push(new Symbol(left, "null", "null"));
+        }
+        else if (res == 19){
+            // null_sign -> epsilon
+            ns = 0;
+            symbols.push(new Symbol(left, "null", "null"));
+        }
+        else if(res == 20 || res == 21) {
+            // variables -> variable , variables
+            // variables -> variable
+            for (int i = 0; i < l; ++i) {
+                symbols.pop();
+            }
+            symbols.push(new Symbol(left, "null", "null"));
+        }
+        else if (res == 22) {
+            // variable -> id array
+            Symbol array = symbols.pop();
+            String id_lexeme = symbols.pop().getSecond();
+            symbols.push(new Symbol(left, "null", id_lexeme));
+        }
+        else if(res == 23) {
+            //array -> [ expr ] array
+            symbols.pop();
+            symbols.pop();
+            symbols.pop();
+            symbols.pop();
+            symbols.push(new Symbol(left, "null", "null"));
+        }
+        else if(res == 24) {
+            //array -> epsilon
+            symbols.push(new Symbol(left, "null", "null"));
+        }
+        else if(res >= 25 && res <= 29){
+            // 四则运算 expr -> expr1 op expr2
+            String expr2_addr = symbols.pop().getAddr();
+            String op = symbols.pop().getFirst();
+            String expr1_addr = symbols.pop().getAddr();
+            String expr_addr = getTemp();
+            symbols.push(new Symbol(left, "null", expr_addr));
+            codes.add(new Code(op, expr1_addr, expr2_addr, expr_addr));    //加入三地址码
+        }
+        else if (res == 30) {
             // expr -> factor
             String tmp = symbols.peek().getAddr();       //addr
             for(int i = 0;i < l;i++)
                 symbols.pop();
             symbols.push(new Symbol(left, "null", tmp));  //addr放到addr
-        } else if(res >= 24 && res <= 28){
-            // 四则运算 E = E op E
-            // 此时栈顶是 E1 op E2，弹出后生成代码并把临时变量压栈
-            String factor = symbols.pop().getAddr();
-            String op = symbols.pop().getFirst();
-            String term1 = symbols.pop().getAddr();
-            String term = getTemp();
-            symbols.push(new Symbol(left, "null", term));
-            codes.add(new Code(op, term1, factor, term));    //加入三地址码
         }
-        else if(res >= 8 && res <= 11){
-        //stmts -> id += expr ；
-            symbols.pop();
-            String expr = symbols.pop().getAddr();
-            String op = symbols.pop().getFirst();   //得到运算符
-            String id = symbols.pop().getSecond();   //得到id
-            symbols.push(new Symbol(left, "null", id));
-            codes.add(new Code(op,id,expr,id));
+        else if(res >=31 && res <= 36){
+            // bool -> expr rel expr
+            String expr2 = symbols.pop().getAddr();
+            String op = symbols.pop().getFirst();     //运算符getfirst，id什么的getsecond
+            String expr1 = symbols.pop().getAddr();
+            ArrayList<Integer> trueList = new ArrayList<Integer>();
+            trueList.add(codes.size());
+            ArrayList<Integer> falseList = new ArrayList<Integer>();
+            falseList.add(codes.size()+1);
+            symbols.push(new Symbol(left, "null", "null", trueList, falseList));
+            codes.add(new Code(op, expr1, expr2, "goto _"));
+            codes.add(new Code("goto", "null", "null", "goto _"));
         }
        // bool -> bool && M bool
-        else if(res == 15 ){
+        else if(res == 37 ){
             ArrayList<Integer> trueList2 = symbols.peek().getTrueList();
             ArrayList<Integer> falseList2 = symbols.pop().getFalseList();
             int M = symbols.pop().getInstr();
@@ -130,7 +319,7 @@ public class Semantic {
             falseList = merge(falseList1,falseList2);
             symbols.push(new Symbol(left, "null", "null", trueList2, falseList, -1));
         }
-        else if(res == 16 ){
+        else if(res == 38 ){
             // bool -> bool || M bool
             ArrayList<Integer> trueList2 = symbols.peek().getTrueList();
             ArrayList<Integer> falseList2 = symbols.pop().getFalseList();
@@ -143,179 +332,115 @@ public class Semantic {
             trueList = merge(trueList1,trueList2);
             symbols.push(new Symbol(left, "null", "null", trueList, falseList2, -1));
         }
-        else if(res == 5 || res == 6){
-            // stmts -> id = expr ;
-            symbols.pop();
-            String expr = symbols.pop().getAddr();   //表达式得到的是Addr
-            symbols.pop();
-            String id = symbols.pop().getSecond();    //id用second
-            symbols.push(new Symbol(left, "null", id));
-            codes.add(new Code("=", expr, "null", id));
-        }
-        else if( res == 7){
-            //stmts -> L = expr ; gen(L.array.base '['L.addr']' ' =' E.addr) op []=  arg1t1    arg2t2
-            symbols.pop();
+        else if (res == 39) {
+            // factor->variable
             String expr = symbols.pop().getAddr();
-            symbols.pop();
-            String id = symbols.peek().getAddr();     //取出具体的id
-            String array = symbols.pop().getSecond();
-            symbols.push(new Symbol(left,"null",id));   //这里暂时不知道加什么
-            codes.add(new Code("[]=",id,expr,array));   //生成一条
-            arraysizea = 1;
-            arraysizeb = 2;
-            arraysizec = 3;
+            symbols.push(new Symbol(left, "null", expr));  //addr直接继承
         }
-        //数组可以为a[10]    a[10][20]    a[10][20][30]
-        else if(res == 35) {
-            //expr -> L       E.addr = new Temp();  gen(E.addr ' =' L.array.base '[' L.addr ']');
-            String term = getTemp();   //新生成temp
-            String L = symbols.peek().getAddr();
-            String id = symbols.pop().getSecond();
-            symbols.push(new Symbol(left,id,term));   //这个也是随便弄的
-            codes.add(new Code("=[]",id,L,term));
-            
+        else if (res == 40 || res == 41){
+            // factor -> num | real
+            String tmp = symbols.peek().getSecond();
+            for(int i = 0;i < l;i++) // 这边不是要么0要么1吗？ epsilon规则对应l为0
+                symbols.pop();
+            symbols.push(new Symbol(left, "null", tmp));   //second放到addr
         }
-        else if(res == 36){  
-            //L -> id [ expr ]     id E.addr    L.addr = new temp();   gen(L.addr '=' E.addr '*'L.wideth)
-            String L = getTemp();
-            symbols.pop();
-            String expr = symbols.pop().getAddr();
-            symbols.pop();
-            String id = symbols.pop().getSecond();
-            symbols.push(new Symbol(left,id,L));
-//            System.out.println(id);
-            if (arraysizea==1&&id.equals("a")) { 
-            	py = "4";
-            	arraysizea--;
-            }
-            if (id.equals("b")) { 
-            	py = "80";
-            	arraysizeb--;
-            }
-            if (id.equals("c")) { 
-            	py = "2400";
-            	arraysizec--;
-            }
-            codes.add(new Code("*",expr,py,L));  
-        }else if(res == 37){
-            //L -> L [ expr ]
-            String t= getTemp();
-            String L =getTemp();
-            symbols.pop();
-            String expr = symbols.pop().getAddr();
-            symbols.pop();
-            String L1 = symbols.peek().getAddr();
-            String id = symbols.pop().getSecond();
-            symbols.push(new Symbol(left,id,L));          
-            if (arraysizeb==1&&id.equals("b")) { 
-            	py = "4";
-            	arraysizeb--;
-            }
-            if (arraysizec==1&&id.equals("c")) { 
-            	py = "4";
-            	arraysizec--;
-            }
-            if (arraysizec==2&&id.equals("c")) { 
-            	py = "80";
-            	arraysizec--;
-            }
-            System.out.println(py);
-            codes.add(new Code("*",expr,py,t)); 
-            codes.add(new Code("+",L1,t,L));
-        }
-        else if(res >=18 && res <= 23){
-            // bool -> expr rel expr
-            String expr2 = symbols.pop().getAddr();
-            String op = symbols.pop().getFirst();     //运算符getfirst，id什么的getsecond
-            String expr1 = symbols.pop().getAddr();
-            ArrayList<Integer> trueList = new ArrayList<Integer>();
-            trueList.add(codes.size());
-            ArrayList<Integer> falseList = new ArrayList<Integer>();
-            falseList.add(codes.size()+1);
-            symbols.push(new Symbol(left, "null", "null", trueList, falseList));
-            codes.add(new Code(op, expr1, expr2, "goto _"));
-            codes.add(new Code("goto", "null", "null", "goto _"));
-        } else if(res == 33){
-            // M -> epsilon
-            symbols.push(new Symbol(left, "null", "null", null, null, nextInstr() ));   //conds.size刚好是下一条指令的地址
-        } else if(res == 34){
-            // N -> epsilon
-            ArrayList<Integer> nextList = new ArrayList<Integer>();
-            nextList.add(codes.size());
-            symbols.push(new Symbol(left, "null", "null", null, null, -1, nextList));
-            codes.add(new Code("goto", "null", "null", "goto _"));
-        } else if(res == 13){
-            // stmts -> if ( bool ) M stmts
-            ArrayList<Integer> stmt1 = symbols.pop().getNextList();
-            int M = symbols.pop().getInstr();     //M的作用是得到下一条跳转地址
-            symbols.pop();
-            ArrayList<Integer> trueList = symbols.peek().getTrueList();
-            ArrayList<Integer> falseList = symbols.pop().getFalseList();
-            symbols.pop();   //if直接pop
-            symbols.pop();
-            backpatch(trueList,M);
-            ArrayList<Integer> nextList =  new ArrayList<Integer>();
-            nextList = merge(falseList,stmt1);
-            symbols.push(new Symbol(left, "null", "null", null, null, -1, nextList));
-        }
-        else if(res == 12){
-            // stmts -> if ( bool )  M stmts N else M stmts
-            ArrayList<Integer> stmt2 = symbols.pop().getNextList();
-            int M2 = symbols.pop().getInstr();
-            symbols.pop();
-            ArrayList<Integer> N = symbols.pop().getNextList();     //N的处理与M稍微不同
-            ArrayList<Integer> stmt1 = symbols.pop().getNextList();
-            int M1 = symbols.pop().getInstr();
-            symbols.pop();
-            ArrayList<Integer> trueList = symbols.peek().getTrueList();
-            ArrayList<Integer> falseList = symbols.pop().getFalseList();
-            symbols.pop();
-            symbols.pop();
-            backpatch(trueList,M1);
-            backpatch(falseList,M2);
-            ArrayList<Integer> nextList = new ArrayList<Integer>();   //这里有一个多余的报错
-            nextList = merge(stmt1,N);
-            nextList = merge(nextList,stmt2);
-            symbols.push(new Symbol(left, "null", "null", null, null, -1, nextList));
-        }
-        //S -> program id { stmt }
-//        else if (res == 1) {
-//            symbols.pop();   //end进行pop
-//            int M = symbols.pop().getInstr();
-//            int stmts = symbols.pop().getNextList();
-//            symbols.pop();  //begin进行pop
-//            if(stmts != -1)
-//                codes.get(stmts).setResult(String.valueOf(M + 100));
-//            symbols.push(new Symbol(left, "null", "null"));
-//        }
-            else if(res == 14){
-            // while_stmt -> while M ( bool ) M stmts
-            ArrayList<Integer> stmt = symbols.pop().getNextList();
-            int M2 = symbols.pop().getInstr();
-            symbols.pop();
-            ArrayList<Integer> trueList = symbols.peek().getTrueList();    //有碰到bool表达式才这样
-            ArrayList<Integer> falseList = symbols.pop().getFalseList();
-            symbols.pop();
-            int M1 = symbols.pop().getInstr();
-            symbols.pop();
-            backpatch(stmt,M1);
-            backpatch(trueList,M2);
-            symbols.push(new Symbol(left, "null", "null", null, null, -1, falseList));
-            codes.add(new Code("goto", "null", "null", String.valueOf(M1 + 100)));
-        }
-        else if(res == 32){
+        else if(res == 42){
             // factor -> ( expr )
             symbols.pop();
             String expr = symbols.pop().getAddr();
             symbols.pop();
             symbols.push(new Symbol(left, "null", expr));  //addr直接继承
-        } else {
+        }
+        else if(res == 43){
+            // M -> epsilon
+            symbols.push(new Symbol(left, "null", "null", null, null, nextInstr()));
+        }
+        else if(res == 44){
+            // N -> epsilon
+            ArrayList<Integer> nextList = new ArrayList<Integer>();
+            nextList.add(nextInstr());
+            symbols.push(new Symbol(left, "null", "null", null, null, -1, nextList));
+            codes.add(new Code("goto", "null", "null", "goto _"));
+        }
+//        else if( res == 7){
+//            //stmts -> L = expr ; gen(L.array.base '['L.addr']' ' =' E.addr) op []=  arg1t1    arg2t2
+//            symbols.pop();
+//            String expr = symbols.pop().getAddr();
+//            symbols.pop();
+//            String id = symbols.peek().getAddr();     //取出具体的id
+//            String array = symbols.pop().getSecond();
+//            symbols.push(new Symbol(left,"null",id));   //这里暂时不知道加什么
+//            codes.add(new Code("[]=",id,expr,array));   //生成一条
+//            arraysizea = 1;
+//            arraysizeb = 2;
+//            arraysizec = 3;
+//        }
+//        //数组可以为a[10]    a[10][20]    a[10][20][30]
+//        else if(res == 35) {
+//            //expr -> L       E.addr = new Temp();  gen(E.addr ' =' L.array.base '[' L.addr ']');
+//            String term = getTemp();   //新生成temp
+//            String L = symbols.peek().getAddr();
+//            String id = symbols.pop().getSecond();
+//            symbols.push(new Symbol(left,id,term));   //这个也是随便弄的
+//            codes.add(new Code("=[]",id,L,term));
+//
+//        }
+//        else if(res == 36){
+//            //L -> id [ expr ]     id E.addr    L.addr = new temp();   gen(L.addr '=' E.addr '*'L.wideth)
+//            String L = getTemp();
+//            symbols.pop();
+//            String expr = symbols.pop().getAddr();
+//            symbols.pop();
+//            String id = symbols.pop().getSecond();
+//            symbols.push(new Symbol(left,id,L));
+////            System.out.println(id);
+//            if (arraysizea==1&&id.equals("a")) {
+//            	py = "4";
+//            	arraysizea--;
+//            }
+//            if (id.equals("b")) {
+//            	py = "80";
+//            	arraysizeb--;
+//            }
+//            if (id.equals("c")) {
+//            	py = "2400";
+//            	arraysizec--;
+//            }
+//            codes.add(new Code("*",expr,py,L));
+//        }else if(res == 37){
+//            //L -> L [ expr ]
+//            String t= getTemp();
+//            String L =getTemp();
+//            symbols.pop();
+//            String expr = symbols.pop().getAddr();
+//            symbols.pop();
+//            String L1 = symbols.peek().getAddr();
+//            String id = symbols.pop().getSecond();
+//            symbols.push(new Symbol(left,id,L));
+//            if (arraysizeb==1&&id.equals("b")) {
+//            	py = "4";
+//            	arraysizeb--;
+//            }
+//            if (arraysizec==1&&id.equals("c")) {
+//            	py = "4";
+//            	arraysizec--;
+//            }
+//            if (arraysizec==2&&id.equals("c")) {
+//            	py = "80";
+//            	arraysizec--;
+//            }
+//            System.out.println(py);
+//            codes.add(new Code("*",expr,py,t));
+//            codes.add(new Code("+",L1,t,L));
+//        }
+//        //S -> program id { stmt }
+        else {
+            Logger.getGlobal().severe("啊");
             for(int i = 0;i < l;i++){
                 symbols.pop();
             }
             symbols.push(new Symbol(left, "null", "null"));
         }
-        Symbol t = symbols.peek();
     }
 
     public void backpatch(ArrayList<Integer> list, int m){  //回填函数没问题
@@ -358,9 +483,10 @@ public class Semantic {
             int addr = i+100;
             //如果是运算符的话
             if(x.getOp().equals("+") || x.getOp().equals("-") || x.getOp().equals("*") || x.getOp().equals("/") || x.getOp().equals("^")){
-                if(x.getArg2()=="null"){
-                    int num = arrs.get(cnt++);
+                if(x.getArg2().equals("null")){
+                    int num = arrs.get(cnt++); //干嘛的
                     x.setArg2(String.valueOf(num));
+                    Logger.getGlobal().severe("啥");
                 }
                 s.append(x.getResult()).
                         append(" = ").
@@ -423,6 +549,7 @@ System.out.println((codes.size()+100)+": "+ " ");
     }    //返回大小
 
 
+    //conds.size刚好是下一条指令的地址
     private int nextInstr() {
         return codes.size();
     }
