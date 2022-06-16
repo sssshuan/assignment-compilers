@@ -10,7 +10,7 @@ public class Symbol {
     private ArrayList<Integer> trueList;    //用arraylist充当数据结构  存指令的行号（后续backpatch填goto的标号到这些行）
     private ArrayList<Integer> falseList;
     private int instr; //指令标号
-    private ArrayList<Integer> nextList;
+    private ArrayList<Integer> nextList; //控制流语句，带有一个未填充的跳转链，
 
     public Symbol() { }
 

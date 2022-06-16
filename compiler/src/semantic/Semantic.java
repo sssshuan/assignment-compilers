@@ -237,7 +237,7 @@ public class Semantic {
             codes.add(new Code("goto", "null", "null", "goto _"));
         } else if(res == 33){
             // M -> epsilon
-            symbols.push(new Symbol(left, "null", "null", null, null, codes.size()));   //conds.size刚好是下一条指令的地址
+            symbols.push(new Symbol(left, "null", "null", null, null, nextInstr() ));   //conds.size刚好是下一条指令的地址
         } else if(res == 34){
             // N -> epsilon
             ArrayList<Integer> nextList = new ArrayList<Integer>();
@@ -410,7 +410,6 @@ public class Semantic {
                 s.append("goto ").append(x.getResult());
             }else
                 continue;
-            //System.out.println(String.valueOf(addr)+": "+s);
 System.out.println(addr+": " + String.valueOf(s));
             tbmodel_addr_code.addRow(new String[]{addr+": ", String.valueOf(s)});    //最后实际在这里输出
         }
@@ -422,4 +421,10 @@ System.out.println((codes.size()+100)+": "+ " ");
     public int size() {
         return symbols.size();
     }    //返回大小
+
+
+    private int nextInstr() {
+        return codes.size();
+    }
+
 }

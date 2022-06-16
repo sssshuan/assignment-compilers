@@ -213,7 +213,8 @@ public class MainFrame extends JFrame {
         FileOutputStream outputStream = null; // 保存分析表 方便出现错误时查看
         String rulesInput = "";
         try {
-            inputStream = new FileInputStream("grammar.txt");
+//            inputStream = new FileInputStream("grammar.txt");
+            inputStream = new FileInputStream("grammar-backup.txt");
             rulesInput = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
             outputStream = new FileOutputStream("table.txt");
         } catch (IOException e) {
@@ -222,6 +223,7 @@ public class MainFrame extends JFrame {
 
         lr0Parser = new LR0Parser(new Grammar(rulesInput));
         if (lr0Parser.parserSLR1()) {
+            System.out.println(lr0Parser.canonicalCollectionStr());
             System.out.println(lr0Parser.actionTableStr());
             System.out.println(lr0Parser.goToTableStr());
             try {
@@ -278,7 +280,6 @@ public class MainFrame extends JFrame {
             e.add(""); e.add(""); e.add("失败");
             result.add(e);
             System.out.println("语法分析 失败");
-            System.out.println(lr0Parser.canonicalCollectionStr());
         }
 
         DefaultTableModel tableModel=(DefaultTableModel) scoreTable.getModel();    //获得表格模型

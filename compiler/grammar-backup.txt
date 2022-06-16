@@ -1,11 +1,11 @@
-S->program id { variable_declaration stmts }
-stmts->stmts stmt
+S->program id { variable_declaration stmts M }
+stmts->stmts M stmt
 stmts->epsilon
-stmt->{ stmts }
-stmt->while ( expr ) stmt
-stmt->if ( expr ) stmt
-stmt->if ( expr ) stmt else stmt
-stmt->for ( id in num .. num ) stmt
+stmt->{ stmts M }
+stmt->while M ( expr ) M stmt
+stmt->if ( expr ) M stmt
+stmt->if ( expr ) M stmt N else M stmt
+stmt->for ( id in num .. num N ) M stmt
 stmt->variable = expr ;
 stmt->variable -= expr ;
 stmt->variable += expr ;
@@ -23,10 +23,6 @@ variables -> variable
 variable -> id array
 array -> [ expr ] array
 array -> epsilon
-expr->expr --
-expr->expr ++
-expr->++ expr
-expr->-- expr
 expr->expr + expr
 expr->expr - expr
 expr->expr * expr
@@ -39,13 +35,11 @@ expr->expr != expr
 expr->expr == expr
 expr->expr <= expr
 expr->expr >= expr
-expr->expr += expr
-expr->expr -= expr
-expr->expr *= expr
-expr->expr /= expr
-expr->expr && expr
-expr->expr || expr
+expr->expr && M expr
+expr->expr || M expr
 factor->variable
 factor->num
 factor->real
 factor->( expr )
+M -> epsilon
+N -> epsilon

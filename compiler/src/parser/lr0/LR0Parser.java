@@ -167,7 +167,7 @@ public class LR0Parser extends LRParser {
      */
     private Action solveConflict(Action shiftAction, String shiftOp, Action reduceAction, String reduceOp) {
         // 特殊二义
-        if(shiftOp.equals("else") && reduceOp.equals("stmt -> if ( expr ) stmt ")) {
+        if(shiftOp.equals("else") && reduceOp.equals("stmt -> if ( expr ) M stmt N else M stmt ")) {
             return shiftAction;
         }
 

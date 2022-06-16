@@ -71,15 +71,15 @@ public abstract class LRParser {
                 saveErrorToFile(errorMsg);
                 inputIndex++; //跳过该输入
                 recordAction(new Action(ActionType.SKIP, 0));
-//                return false;
             }else if(action.getType() == ActionType.SHIFT){
                 //移入
                 tokenStack.push(nextInput);
                 stateStack.push(action.getOperand());
                 inputIndex++;
                 recordAction(action);
-//    Logger.getGlobal().info(nextInput+"\t"+nextInputSymbol.second());
-                semantic.add(nextInput, nextInputSymbol.second()); // 这里还要理解下
+//Logger.getGlobal().info(nextInput+"\t"+nextInputSymbol.second());
+                //移入时，把符号的词法值给计算了（主要是id.lexeme，num.value），后续归约时可以用到
+                semantic.add(nextInput, nextInputSymbol.second());
             }else if(action.getType() == ActionType.REDUCE){
                 //归约
                 int ruleIndex = action.getOperand();
@@ -99,14 +99,14 @@ public abstract class LRParser {
                 tokenStack.push(leftSide);
                 int variableState = goToTable[nextState].get(leftSide);
                 stateStack.push(variableState);
-
-        semantic.analyse(ruleIndex, rightSideLength);
-
                 recordAction(action);
+                //归约时，对语义的栈做相应操作
+                semantic.analyse(ruleIndex, rightSideLength);
             }else if(action.getType() == ActionType.ACCEPT){
                 //接受
                 recordAction(action);
-        semantic.print();
+                //输出中间代码
+                semantic.print();
                 return true;
             }
         }
