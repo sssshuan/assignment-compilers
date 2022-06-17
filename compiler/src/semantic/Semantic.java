@@ -3,19 +3,22 @@ package semantic;
 import parser.util.Grammar;
 import parser.util.Rule;
 import symbols.Array;
+import symbols.Info;
 import symbols.Type;
 
 import javax.swing.table.DefaultTableModel;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.Stack;
 import java.util.logging.Logger;
 
 public class Semantic {
+    Hashtable<String, Info> top = new Hashtable<>(); // 记住标识符的附加信息
+
     private Stack<Symbol> symbols;
+
     private ArrayList<Code> codes;
     private ArrayList<Integer> arrs;
-//    private AnalyseList analyseList;
-    private Grammar grammar;
 
     private int tempNumber;
     private int cnt;
@@ -33,10 +36,9 @@ public class Semantic {
         cnt = 0;
     }
 
-    public Semantic(Grammar grammar, DefaultTableModel tbmodel_expanded_stack,
+    public Semantic(DefaultTableModel tbmodel_expanded_stack,
                     DefaultTableModel tbmodel_addr_code){      //有参构造函数，传入两个表
         this();
-        this.grammar = grammar;
         this.tbmodel_addr_code = tbmodel_addr_code;
         this.tbmodel_expanded_stack = tbmodel_expanded_stack;
     }
@@ -161,7 +163,7 @@ public class Semantic {
                 break;
             }
             case "stmt -> for ( id in num .. num N ) M stmt ": {
-                symbols.pop(); // stmt1 没用吗？
+                symbols.pop();
                 int M_instr = symbols.pop().getInstr();
                 symbols.pop();
                 ArrayList<Integer> N_nextList = symbols.pop().getNextList();
@@ -272,10 +274,8 @@ public class Semantic {
                 Symbol array = symbols.pop();
                 Symbol id = symbols.pop();
                 String id_lexeme = id.getSecond();
-                Symbol variable = new Symbol(left, "null", id_lexeme, array.getType());
-//                Logger.getGlobal().info("测试数组类型1： " + array.getType());
-                variable.setNs(ns);
-                symbols.push(variable);
+                top.put(id_lexeme, new Info(array.getType(), ns));
+                symbols.push(new Symbol(left, "null", id_lexeme));
                 break;
             }
             case "array -> [ num ] array " : {
@@ -390,15 +390,13 @@ public class Semantic {
                 break;
             }
             case "L -> id [ expr ] ": {
-                //TODO: 这边 拿不到 id 的类型信息
                 String L = getTemp();
                 symbols.pop();
                 String expr = symbols.pop().getAddr();
                 symbols.pop();
                 Symbol id = symbols.pop();
                 String id_lexeme = id.getSecond();
-//                Array id_type = (Array) id.getType(); // [10][20]<int>
-                Array id_type = new Array(10, new Array(20, Type.Int));
+                Array id_type = (Array) top.get(id_lexeme).getType();//new Array(10, new Array(20, Type.Int));
                 symbols.push(new Symbol(left, id_lexeme, L, id_type.element)); // 子数组类型
                 codes.add(new Code("*",expr, ""+id_type.element.width, L));
                 break;
@@ -417,7 +415,7 @@ public class Semantic {
 
                 codes.add(new Code("*", expr, "" + L1_array.element.width, t));
                 codes.add(new Code("+", L1_addr, t , L_addr));
-                    break;
+                break;
             }
             default: {
                 throw new Error("没有匹配规则");

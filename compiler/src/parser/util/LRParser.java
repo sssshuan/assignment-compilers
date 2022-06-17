@@ -30,7 +30,7 @@ public abstract class LRParser {
 
     public LRParser(Grammar grammar) {
         this.grammar = grammar;
-        semantic = new Semantic(grammar, new DefaultTableModel(), new DefaultTableModel());
+        semantic = new Semantic(new DefaultTableModel(), new DefaultTableModel());
     }
 
     protected abstract void createGoToTable();

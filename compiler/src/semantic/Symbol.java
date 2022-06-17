@@ -15,7 +15,6 @@ public class Symbol {
     private ArrayList<Integer> nextList; //控制流语句，带有一个未填充的跳转链，
 
     private Type type;
-    private boolean ns = false;
 
     public Symbol() { }
 
@@ -123,11 +122,11 @@ public class Symbol {
         this.type = type;
     }
 
-    public boolean getNs() {
-        return ns;
-    }
-
-    public void setNs(boolean ns) {
-        this.ns = ns;
-    }
+//    public boolean getNs() {
+//        return ns;
+//    }
+//
+//    public void setNs(boolean ns) {
+//        this.ns = ns;
+//    }
 }
