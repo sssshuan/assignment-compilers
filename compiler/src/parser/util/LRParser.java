@@ -101,7 +101,7 @@ public abstract class LRParser {
                 stateStack.push(variableState);
                 recordAction(action);
                 //归约时，对语义的栈做相应操作
-                semantic.analyse(ruleIndex, rightSideLength);
+                semantic.analyse(rule);
             }else if(action.getType() == ActionType.ACCEPT){
                 //接受
                 recordAction(action);

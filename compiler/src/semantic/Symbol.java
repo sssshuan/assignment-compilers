@@ -1,5 +1,7 @@
 package semantic;
 
+import symbols.Type;
+
 import java.util.ArrayList;
 
 //符号栈中的符号封装 参考ppt 5c结尾
@@ -11,6 +13,9 @@ public class Symbol {
     private ArrayList<Integer> falseList;
     private int instr; // 用于占位符M记住指令标号
     private ArrayList<Integer> nextList; //控制流语句，带有一个未填充的跳转链，
+
+    private Type type;
+    private boolean ns = false;
 
     public Symbol() { }
 
@@ -39,6 +44,13 @@ public class Symbol {
     public Symbol(String first, String second, String addr){
         this(first, second, addr, null, null, -1, null);
     }
+
+
+    public Symbol(String first, String second, String addr, Type type) {
+        this(first, second, addr, null, null, -1, null);
+        this.type = type;
+    }
+
 
     public String getFirst() {
         return first;
@@ -101,5 +113,21 @@ public class Symbol {
     public Symbol setNextList(ArrayList<Integer> nextList) {
         this.nextList = nextList;
         return this;
+    }
+
+    public Type getType() {
+        return type;
+    }
+
+    public void setType(Type type) {
+        this.type = type;
+    }
+
+    public boolean getNs() {
+        return ns;
+    }
+
+    public void setNs(boolean ns) {
+        this.ns = ns;
     }
 }

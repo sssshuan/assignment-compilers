@@ -6,7 +6,8 @@ stmt->while M ( expr ) M stmt
 stmt->if ( expr ) M stmt
 stmt->if ( expr ) M stmt N else M stmt
 stmt->for ( id in num .. num N ) M stmt
-stmt->variable = expr ;
+stmt->id = expr ;
+stmt->L = expr ;
 stmt->variable -= expr ;
 stmt->variable += expr ;
 stmt->variable *= expr ;
@@ -20,7 +21,7 @@ null_sign -> epsilon
 variables -> variable , variables
 variables -> variable
 variable -> id array
-array -> [ expr ] array
+array -> [ num ] array
 array -> epsilon
 expr->expr + expr
 expr->expr - expr
@@ -36,9 +37,12 @@ expr->expr <= expr
 expr->expr >= expr
 expr->expr && M expr
 expr->expr || M expr
-factor->variable
+factor -> L
+factor->id
 factor->num
 factor->real
 factor->( expr )
 M -> epsilon
 N -> epsilon
+L -> id [ expr ]
+L -> L [ expr ]
