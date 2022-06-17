@@ -229,8 +229,7 @@ public class MainFrame extends JFrame {
         FileOutputStream outputStream = null; // 保存分析表 方便出现错误时查看
         String rulesInput = "";
         try {
-//            inputStream = new FileInputStream("grammar.txt");
-            inputStream = new FileInputStream("grammar-backup.txt");
+            inputStream = new FileInputStream("grammar.txt");
             rulesInput = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
             outputStream = new FileOutputStream("table.txt");
         } catch (IOException e) {
