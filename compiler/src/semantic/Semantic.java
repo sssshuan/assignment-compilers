@@ -22,8 +22,15 @@ public class Semantic {
 
     private int tempNumber;
     private int cnt;
-    private DefaultTableModel tbmodel_expanded_stack;
-    private DefaultTableModel tbmodel_addr_code;
+
+    private ArrayList<String> errors = new ArrayList<>();
+    public ArrayList<String> getErrors() {
+        return errors;
+    }
+    private ArrayList<String> threeAddressCode = new ArrayList<>();
+    public ArrayList<String> getThreeAddressCode() {
+        return threeAddressCode;
+    }
 
     private Type type;
     private boolean ns = false;
@@ -36,27 +43,12 @@ public class Semantic {
         cnt = 0;
     }
 
-    public Semantic(DefaultTableModel tbmodel_expanded_stack,
-                    DefaultTableModel tbmodel_addr_code){      //有参构造函数，传入两个表
-        this();
-        this.tbmodel_addr_code = tbmodel_addr_code;
-        this.tbmodel_expanded_stack = tbmodel_expanded_stack;
-    }
-
     public String getTemp(){
         return "t"+(++tempNumber);
     }    //返回t1,t2之类的东西
 
     public void add(String first, String second){
-//        System.out.println("-------------");
-//        printSymbol();
         symbols.push(new Symbol(first, second, "null"));
-//        System.out.println("shift(add symbol): " + first + "\t" + second);
-//        printSymbol();
-//        System.out.println("-------------");
-//        Symbol t = symbols.peek();
-//        tbmodel_expanded_stack.addRow(new String[]{t.getFirst(), t.getSecond(), t.getAddr(),
-//                printList(t.getTrueList()), printList(t.getFalseList()), printList(t.getNextList())});
     }
 
 
@@ -187,7 +179,7 @@ public class Semantic {
                 codes.add(new Code("goto", "null", "null", "goto _"));
                 backpatch(N_nextList, nextInstr());
                 codes.add(new Code("=", ""+num_value, "null", id_addr)); // 初始值
-                codes.add(new Code("goto", "null", "null", ""+temp));
+                codes.add(new Code("goto", "null", "null", ""+(temp+100)));
                 break;
             }
             case "stmt -> id = expr ; ": {
@@ -229,8 +221,7 @@ public class Semantic {
                 String id = symbols.pop().getSecond();//getAddr();
                 Type id_type = top.get(id).getType();
                 if(top.get(id).isNs()) {
-                    //TODO: 报错
-
+                    recordError("null value used '" + id + "'");
                     top.get(id).setNs(false); // 清掉，防止多次对同一标识符报错
                 }
                 symbols.push(new Symbol(left, "null", id));
@@ -398,8 +389,7 @@ public class Semantic {
             case "factor -> id " : {
                 String id = symbols.pop().getSecond();
                 if(top.get(id).isNs()) {
-                    //TODO: 错误
-
+                    recordError("null value used '" + id + "'");
                     top.get(id).setNs(false); // 清掉，防止多次对同一标识符报错
                 }
                 symbols.push(new Symbol(left, "null", id, top.get(id).getType()));   //second放到addr
@@ -565,12 +555,11 @@ public class Semantic {
                 s.append("goto ").append(x.getResult());
             }else
                 continue;
+            threeAddressCode.add(addr+": " + String.valueOf(s));
             System.out.println(addr+": " + String.valueOf(s));
-            tbmodel_addr_code.addRow(new String[]{addr+": ", String.valueOf(s)});    //最后实际在这里输出
         }
         System.out.println((codes.size()+100)+": "+ " ");
-        tbmodel_addr_code.addRow(new String[]{(codes.size()+100)+": ", " "});     //这个是输出大小的
-        //System.out.println(codes.size()+100+": ");
+        threeAddressCode.add((codes.size()+100)+": "+ " ");
     }
 
     public int size() {
@@ -607,6 +596,11 @@ public class Semantic {
             codes.add(new Code("=","("+result.lexeme+")"+addr,"null",t));
             return t;
         }
+    }
+
+
+    private void recordError(String msg) {
+        errors.add("Error: " + msg);
     }
 
 }

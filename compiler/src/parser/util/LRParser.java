@@ -30,7 +30,7 @@ public abstract class LRParser {
 
     public LRParser(Grammar grammar) {
         this.grammar = grammar;
-        semantic = new Semantic(new DefaultTableModel(), new DefaultTableModel());
+        semantic = new Semantic();
     }
 
     protected abstract void createGoToTable();
@@ -228,6 +228,13 @@ public abstract class LRParser {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public ArrayList<String> getSemanticError() {
+        return semantic.getErrors();
+    }
+    public ArrayList<String> getSemanticInterCode() {
+        return semantic.getThreeAddressCode();
     }
 
 }

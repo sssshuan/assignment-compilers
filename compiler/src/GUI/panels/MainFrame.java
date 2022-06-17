@@ -38,10 +38,12 @@ public class MainFrame extends JFrame {
     private String content = "";//读取的内容
     private String result = "";//分析结果
 
+    JTextArea semanticOutputArea;
+
     LR0Parser lr0Parser;
 
     public MainFrame() throws HeadlessException {
-        super("词法分析器");
+        super("");
         chooser = new JFileChooser();
         FileNameExtensionFilter filter = new FileNameExtensionFilter("标签文件(*.txt)", "txt");
         chooser.setFileFilter(filter);
@@ -72,7 +74,7 @@ public class MainFrame extends JFrame {
         inputPanel.add(inputBtn, BorderLayout.SOUTH);
 
         //输出盒子
-        outputLabel = new JLabel("结果:");
+        outputLabel = new JLabel("词法分析结果:");
         outputArea = new JTextArea(25, 40);
         outputArea.setFont(new Font("monospaced", Font.PLAIN, 15));
         outputArea.setLineWrap(true);
@@ -86,13 +88,27 @@ public class MainFrame extends JFrame {
         analyseBtn = new Button("开始分析>>>");
 
         initTableUI();
+        JScrollPane parserResultPane = new JScrollPane(scoreTable);
+//        JLabel parserResultLabel = new JLabel("语法分析结果:");
+//        parserResultPane.add(parserResultLabel, BorderLayout.NORTH);
+
+        JLabel semanticResultLabel = new JLabel("语义分析结果:");
+        semanticOutputArea = new JTextArea(25, 40);
+        semanticOutputArea.setFont(new Font("monospaced", Font.PLAIN, 15));
+        semanticOutputArea.setLineWrap(true);
+        JPanel semanticResultPane = new JPanel();
+        semanticResultPane.setLayout(new BorderLayout());
+        semanticResultPane.add(semanticResultLabel, BorderLayout.NORTH);
+        JScrollPane jScrollPane3 = new JScrollPane(semanticOutputArea);
+        semanticResultPane.add(jScrollPane3, BorderLayout.SOUTH);
 
         //界面添加
         setLayout(new FlowLayout());
         add(inputPanel);
         add(analyseBtn);
         add(outputPanel);
-        add(new JScrollPane(scoreTable));
+        add(parserResultPane);
+        add(semanticResultPane);
     }
 
     class SHTable extends JTable {
@@ -292,6 +308,18 @@ public class MainFrame extends JFrame {
 
         scoreTable.setModel(tableModel);    //应用表格模型
 
+
+        StringBuilder builder1 = new StringBuilder("\n三地址码: \n");
+        for(String code : lr0Parser.getSemanticInterCode()) {
+            builder1.append(code).append("\n");
+        }
+
+        builder1.append("\n\n错误信息：\n");
+//        StringBuilder emanticError = new StringBuilder("\n\n错误信息：\n");
+        for(String error : lr0Parser.getSemanticError()) {
+            builder1.append(error).append("\n");
+        }
+        semanticOutputArea.setText(builder1.toString());
     }
 
 }
