@@ -196,9 +196,10 @@ public class Semantic {
                 symbols.pop();
                 String id = symbols.pop().getSecond();    //id用second
 //                String id = symbols.pop().getAddr();
-                Logger.getGlobal().info("测试1: " + id);
+//                Logger.getGlobal().info("测试1: " + id);
                 symbols.push(new Symbol(left, "null", id));
                 codes.add(new Code("=", expr, "null", id));
+                top.get(id).setNs(false);
                 break;
             }
             case "stmt -> L = expr ; " : {
@@ -207,9 +208,10 @@ public class Semantic {
                 symbols.pop();
                 String id = symbols.peek().getAddr();     //取出具体的id
                 String array = symbols.pop().getSecond();
-                Logger.getGlobal().info("测试2: " + id);
+//                Logger.getGlobal().info("测试2: " + array);
                 symbols.push(new Symbol(left,"null",id));   //这里暂时不知道加什么
                 codes.add(new Code("[]=",id,expr,array));   //生成一条
+                top.get(array).setNs(false);
                 break;
             }
             case "stmt -> variable -= expr ; ":
@@ -222,6 +224,12 @@ public class Semantic {
 //            String id = symbols.pop().getSecond();   //得到id
                 String id = symbols.pop().getAddr();
                 Logger.getGlobal().info("测试2: " + id);
+                if(top.get(id).isNs()) {
+                    //TODO: 报错
+
+                    top.get(id).setNs(false); // 清掉，防止多次对同一标识符报错
+                }
+
                 symbols.push(new Symbol(left, "null", id));
                 codes.add(new Code(op,id,expr,id));
                 break;
@@ -364,7 +372,16 @@ public class Semantic {
                 codes.add(new Code("=[]",id,L,term));
                 break;
             }
-            case "factor -> id " :
+            case "factor -> id " : {
+                String id = symbols.pop().getSecond();
+                if(top.get(id).isNs()) {
+                    //TODO: 错误
+
+                    top.get(id).setNs(false); // 清掉，防止多次对同一标识符报错
+                }
+                symbols.push(new Symbol(left, "null", id));   //second放到addr
+                break;
+            }
             case "factor -> num " :
             case "factor -> real " : {
                 String tmp = symbols.pop().getSecond();
