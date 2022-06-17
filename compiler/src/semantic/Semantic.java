@@ -284,6 +284,9 @@ public class Semantic {
                 Symbol array = symbols.pop();
                 Symbol id = symbols.pop();
                 String id_lexeme = id.getSecond();
+                if(top.get(id_lexeme) != null) {
+                    recordError("重复声明: '" + id_lexeme + "'");
+                }
                 top.put(id_lexeme, new Info(array.getType(), ns));
 //        Logger.getGlobal().info(id_lexeme + array.getType());
                 symbols.push(new Symbol(left, "null", id_lexeme));
@@ -388,6 +391,11 @@ public class Semantic {
             }
             case "factor -> id " : {
                 String id = symbols.pop().getSecond();
+//                if(top.get(id) == null) {
+//                    recordError("使用未声明变量 '" + id + "'");
+//                    break;
+//                }
+//                else
                 if(top.get(id).isNs()) {
                     recordError("null value used '" + id + "'");
                     top.get(id).setNs(false); // 清掉，防止多次对同一标识符报错
@@ -603,7 +611,11 @@ public class Semantic {
 
 
     private void recordError(String msg) {
-        errors.add("Error: " + msg);
+        String error = "Error: " + msg;
+        if (errors.contains(error)) {
+            return;
+        }
+        errors.add(error);
     }
 
 }
