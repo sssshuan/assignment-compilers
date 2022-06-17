@@ -1,43 +1,101 @@
 (00) S->program id { variable_declaration stmts }
-(01) stmts->stmts M stmt
+{ backpatch(stmts_nextList, nextInstr()); }
+
+(01) stmts->stmts1 M stmt
+{ backpatch(stmts1.nextlist,M.instr);
+  stmts.nextlist = stmt.nextlist; }
+
 (02) stmts->stmt
+{ stmts.nextlist = stmt.nextlist; }
+
 (03) stmt->{ stmts }
-(04) stmt->while M ( expr ) M stmt
-(05) stmt->if ( expr ) M stmt
-(06) stmt->if ( expr ) M stmt N else M stmt
+{ stmt.nextlist = stmts.nextlist; }
+
+(04) stmt->while M1 ( expr ) M2 stmt1
+{ backpatch(stmt1.nextlist,M1.instr);
+  backpatch(expr.truelist,M2.instr);
+  stmt.nextlist = stmt1.nextlist;
+  gen('goto' M1.instr); }
+
+(05) stmt->if ( expr ) M stmt1
+{ backpatch(expr.truelist, M.instr);
+  stmt.nextlist = merge(expr.falselist, stmt1.nextlist); }
+
+(06) stmt->if ( expr ) M1 stmt1 N else M2 stmt2
+{ backpatch(expr.truelist,M1.instr);
+  backpatch(expr.falselist,M2.instr);
+  temp = merge(stmt1.nextlist, N.nextlist);
+  stmt.nextlist = merge(temp, stmt2.nextlist); }
+
 (07) stmt->for ( id in num .. num N ) M stmt
+{   t=new Temp();
+    gen(t'='id.addr'+'1)
+    gen(id.addr'='t);
+    temp=nextinstr;
+    gen('if' id.addr '<=' num1.value 'goto' M.instr);
+    stmt.nextlist=makelist(nextinstr);
+    gen('goto _');
+    backpatch(N.nextlist, nextinstr);
+    gen(id.addr'='num.value);
+    gen('goto' temp);
+}
 
 (08) stmt->id = expr ;
-{   gen(top.get(id.lexeme) '=' expr.addr);
+{   expr.addr = shorten(expr.addr, expr.type, top.get(id.lexeme).type);
+    gen(top.get(id.lexeme) '=' expr.addr);
     top.get(id.lexeme).setNs(0));
 }
 
 (09) stmt->L = expr ;
-{ gen(L.array.base '[' L.addr ']' '=' expr.addr); }
-
-(10) stmt->variable -= expr ;
-{ gen(variable.addr '-=' expr.addr);
-  top.putNS(variable.lexeme);
+{   expr.addr = shorten(expr.addr, expr.type, L.type);
+    gen(L.array.base '[' L.addr ']' '=' expr.addr);
 }
 
-(11) stmt->variable += expr ;
-{ gen(variable.addr '+=' expr.addr);
-  top.putNS(variable.lexeme);
-}
+(10) stmt->id -= expr ;
+{   if(top.get(id.lexeme).ns == 1){print('Error');top.get(id.lexeme).setNs(0);}
+    Type max_type = max(top.get(id.lexeme).type, expr.type);
+    id_addr = widen(top.get(id.lexeme), top.get(id.lexeme).type, max_type);
+    expr.addr = widen(expr.addr, expr.type, max_type);
+    gen(t.addr '=' id_addr - expr.addr);
+    t.addr = shorten(t.addr, max_type, top.get(id.lexeme).type);
+    gen(variable.addr '=' t.addr); }
 
-(12) stmt->variable *= expr ;
-{ gen(variable.addr '*=' expr.addr);
-  top.putNS(variable.lexeme);
-}
+(11) stmt->id += expr ;
+{   if(top.get(id.lexeme).ns == 1){print('Error');top.get(id.lexeme).setNs(0);}
+    Type max_type = max(top.get(id.lexeme).type, expr.type);
+    id_addr = widen(top.get(id.lexeme), top.get(id.lexeme).type, max_type);
+    expr.addr = widen(expr.addr, expr.type, max_type);
+    gen(t.addr '=' id_addr + expr.addr);
+    t.addr = shorten(t.addr, max_type, top.get(id.lexeme).type);
+    gen(variable.addr '=' t.addr); }
 
-(13) stmt->variable /= expr ;
-{ gen(variable.addr '/=' expr.addr);
-  top.putNS(variable.lexeme); }
+(12) stmt->id *= expr ;
+{   if(top.get(id.lexeme).ns == 1){print('Error');top.get(id.lexeme).setNs(0);}
+    Type max_type = max(top.get(id.lexeme).type, expr.type);
+    id_addr = widen(top.get(id.lexeme), top.get(id.lexeme).type, max_type);
+    expr.addr = widen(expr.addr, expr.type, max_type);
+    gen(t.addr '=' id_addr * expr.addr);
+    t.addr = shorten(t.addr, max_type, top.get(id.lexeme).type);
+    gen(variable.addr '=' t.addr); }
+
+(13) stmt->id /= expr ;
+{   if(top.get(id.lexeme).ns == 1){print('Error');top.get(id.lexeme).setNs(0);}
+    Type max_type = max(top.get(id.lexeme).type, expr.type);
+    id_addr = widen(top.get(id.lexeme), top.get(id.lexeme).type, max_type);
+    expr.addr = widen(expr.addr, expr.type, max_type);
+    gen(t.addr '=' id_addr / expr.addr);
+    t.addr = shorten(t.addr, max_type, top.get(id.lexeme).type);
+    gen(variable.addr '=' t.addr); }
 
 (14) variable_declaration -> type null_sign variables ; variable_declaration
 (15) variable_declaration -> epsilon
+
 (16) type -> int
+{ type = int; width=4;}
+
 (17) type -> float
+{ type = float; width=8;}
+
 (18) null_sign -> ?
 { ns = 1; }
 
@@ -46,88 +104,32 @@
 
 (20) variables -> variable , variables
 (21) variables -> variable
+
 (22) variable -> id array
-(23) array -> [ num ] array
+{ top.put(id.lexeme, <array>.type, <array>.width, ns); }
+
+(23) array -> [ num ] array1
+{ array.type = array(num.value, array1.type); }
+
 (24) array -> epsilon
+{   array.type=type;
+    array.width=width; }
 
-(25) expr->expr + expr
-{ if(expr1.type == int and expr2 == int)
-    expr.type == int;
-  else
-    expr.type == float;
+(25) expr->expr1 op expr2
+{ expr.type = max(expr1.type, expr2.type)
+  expr1_addr = widen(expr1.addr,expr1.type,expr.type);
+  expr2_addr = widen(expr2.addr,expr2.type,expr.type);
   expr.addr = new Temp();
-  gen(expr.addr '=' expr1.addr '+' expr2.addr);
-}
-
-(26) expr->expr - expr
-{ if(expr1.type == int and expr2 == int)
-    expr.type == int;
-  else
-    expr.type == float;
-  expr.addr = new Temp();
-  gen(expr.addr '=' expr1.addr '-' expr2.addr);
-}
-
-(27) expr->expr * expr
-{ expr.addr = new Temp();
-  gen(expr.addr '=' expr1.addr '*' expr2.addr);
-}
-
-(28) expr->expr / expr
-{ if(expr1.type == int and expr2 == int)
-    expr.type == int;
-  else
-    expr.type == float;
-  expr.addr = new Temp();
-  gen(expr.addr '=' expr1.addr '/' expr2.addr);
-}
-
-(29) expr->expr ^ factor
-{ if(expr1.type == int)
-    expr.type == int;
-  else
-    expr.type == float;
-  expr.addr = new Temp();
-  gen(expr.addr '=' expr1.addr '^' factor.addr);
-}
+  gen(expr.addr '=' expr1_addr op expr2_addr); }
 
 (30) expr->factor
-{ expr.addr = factor.addr; }//相当于ppt 6b 中的E->id
+{ expr.addr = factor.addr;
+  expr.type = factor.type;}
 
-(31) expr->expr1 < expr2
+(31) expr->expr1 relop expr2
 { expr.truelist = makelist(nextinstr);
   expr.falselist = makelist(nextinstr + 1);
-  gen('if' expr1.addr '<' expr2.addr 'goto _');
-  gen('goto _'); }
-
-(32) expr->expr > expr
-{ expr.truelist = makelist(nextinstr);
-  expr.falselist = makelist(nextinstr + 1);
-  gen('if' expr1.addr '>' expr2.addr 'goto _');
-  gen('goto _'); }
-
-(33) expr->expr != expr
-{ expr.truelist = makelist(nextinstr);
-  expr.falselist = makelist(nextinstr + 1);
-  gen('if' expr1.addr '!=' expr2.addr 'goto _');
-  gen('goto _'); }
-
-(34) expr->expr == expr
-{ expr.truelist = makelist(nextinstr);
-  expr.falselist = makelist(nextinstr + 1);
-  gen('if' expr1.addr '==' expr2.addr 'goto _');
-  gen('goto _'); }
-
-(35) expr->expr <= expr
-{ expr.truelist = makelist(nextinstr);
-  expr.falselist = makelist(nextinstr + 1);
-  gen('if' expr1.addr '<=' expr2.addr 'goto _');
-  gen('goto _'); }
-
-(36) expr->expr >= expr
-{ expr.truelist = makelist(nextinstr);
-  expr.falselist = makelist(nextinstr + 1);
-  gen('if' expr1.addr '>=' expr2.addr 'goto _');
+  gen('if' expr1.addr relop expr2.addr 'goto _');
   gen('goto _'); }
 
 (37) expr->expr1 && M expr2
@@ -142,19 +144,23 @@
 
 (39) factor -> L
 { factor.addr = new Temp();
+  factor.type = L.type;
   gen(factor.addr '=' L.array.base '[' L.addr ']');
 }
 
 (40) factor->id
 { info = top.get(id.lexeme);
+  factor.type = info.type;
   if(info.ns == 1) { print('Error'); top.get(id.lexeme).setNs(0)); }
 }
 
 (41) factor->num
-{ factor.addr = top.get(num.lexeme); }
+{ factor.addr = top.get(num.lexeme);
+  factor.type = int; }
 
 (42) factor->real
-{ factor.addr = top.get(real.lexeme); }
+{ factor.addr = top.get(real.lexeme);
+  factor.type = float; }
 
 (43) factor->( expr )
 { factor.addr = expr.addr; }

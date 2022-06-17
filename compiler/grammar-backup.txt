@@ -8,10 +8,10 @@ stmt->if ( expr ) M stmt N else M stmt
 stmt->for ( id in num .. num N ) M stmt
 stmt->id = expr ;
 stmt->L = expr ;
-stmt->variable -= expr ;
-stmt->variable += expr ;
-stmt->variable *= expr ;
-stmt->variable /= expr ;
+stmt->id -= expr ;
+stmt->id += expr ;
+stmt->id *= expr ;
+stmt->id /= expr ;
 variable_declaration -> type null_sign variables ; variable_declaration
 variable_declaration -> epsilon
 type -> int

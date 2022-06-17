@@ -192,46 +192,57 @@ public class Semantic {
             }
             case "stmt -> id = expr ; ": {
                 symbols.pop();
+                Type type_expr = symbols.peek().getType();//得到expr的类型
                 String expr = symbols.pop().getAddr();   //表达式得到的是Addr
                 symbols.pop();
-                String id = symbols.pop().getSecond();    //id用second
-//                String id = symbols.pop().getAddr();
-//                Logger.getGlobal().info("测试1: " + id);
-                symbols.push(new Symbol(left, "null", id));
-                codes.add(new Code("=", expr, "null", id));
-                top.get(id).setNs(false);
+                Symbol id = symbols.pop();
+                String id_lexeme = id.getSecond();    //id用second
+                Type id_type = top.get(id_lexeme).getType(); //得到id的类型
+                symbols.push(new Symbol(left, "null", id_lexeme));
+                expr = shorten(expr, type_expr, id_type); // 类型窄化
+                codes.add(new Code("=", expr, "null",id_lexeme));
+                top.get(id_lexeme).setNs(false);
                 break;
             }
             case "stmt -> L = expr ; " : {
                 symbols.pop();
-                String expr = symbols.pop().getAddr();
+                Symbol expr = symbols.pop();
+                String expr_addr = expr.getAddr();
                 symbols.pop();
-                String id = symbols.peek().getAddr();     //取出具体的id
-                String array = symbols.pop().getSecond();
-//                Logger.getGlobal().info("测试2: " + array);
-                symbols.push(new Symbol(left,"null",id));   //这里暂时不知道加什么
-                codes.add(new Code("[]=",id,expr,array));   //生成一条
+                Symbol L = symbols.pop();
+                String index_expr_addr = L.getAddr();
+                String array = L.getSecond(); //取出具体的id
+                symbols.push(new Symbol(left,"null",index_expr_addr));   //这里暂时不知道加什么
+                expr_addr = shorten(expr_addr, expr.getType(), L.getType()); // 类型窄化
+                codes.add(new Code("[]=",index_expr_addr,expr_addr,array));   //生成一条
                 top.get(array).setNs(false);
                 break;
             }
-            case "stmt -> variable -= expr ; ":
-            case "stmt -> variable += expr ; ":
-            case "stmt -> variable *= expr ; ":
-            case "stmt -> variable /= expr ; ": {
+            case "stmt -> id -= expr ; ":
+            case "stmt -> id += expr ; ":
+            case "stmt -> id *= expr ; ":
+            case "stmt -> id /= expr ; ": {
                 symbols.pop();
-                String expr = symbols.pop().getAddr();
+                Symbol expr = symbols.pop();
+                String expr_addr = expr.getAddr();
                 String op = symbols.pop().getFirst();   //得到运算符
-//            String id = symbols.pop().getSecond();   //得到id
-                String id = symbols.pop().getAddr();
-                Logger.getGlobal().info("测试2: " + id);
+                String id = symbols.pop().getSecond();//getAddr();
+                Type id_type = top.get(id).getType();
                 if(top.get(id).isNs()) {
                     //TODO: 报错
 
                     top.get(id).setNs(false); // 清掉，防止多次对同一标识符报错
                 }
-
                 symbols.push(new Symbol(left, "null", id));
-                codes.add(new Code(op,id,expr,id));
+                // t = id + expr
+                Type max_type = Type.max(id_type, expr.getType());
+                id = widen(id, id_type, max_type);
+                expr_addr = widen(expr_addr, expr.getType(), max_type);
+                String temp = getTemp();
+                codes.add(new Code(""+op.charAt(0), id, expr_addr, temp));
+                // id = t
+                temp = shorten(temp, max_type, id_type);
+                codes.add(new Code("=",temp,"null",id));
                 break;
             }
             case "variable_declaration -> type null_sign variables ; variable_declaration ": {
@@ -283,6 +294,7 @@ public class Semantic {
                 Symbol id = symbols.pop();
                 String id_lexeme = id.getSecond();
                 top.put(id_lexeme, new Info(array.getType(), ns));
+//        Logger.getGlobal().info(id_lexeme + array.getType());
                 symbols.push(new Symbol(left, "null", id_lexeme));
                 break;
             }
@@ -306,18 +318,28 @@ public class Semantic {
             case "expr -> expr * expr ":
             case "expr -> expr / expr ":
             case "expr -> expr ^ factor ": {
-                // 四则运算 expr -> expr1 op expr2
+                Symbol expr = new Symbol(left,"null","null");
+                Type expr2_type = symbols.peek().getType();//取expr2的type
                 String expr2_addr = symbols.pop().getAddr();
-                String op = symbols.pop().getFirst();
+                String op = symbols.pop().getFirst();//取op
+                Type expr1_type = symbols.peek().getType();//取expr1的type
                 String expr1_addr = symbols.pop().getAddr();
+                //获取两个操作数中级别最高的数据类型，赋给expr的type
+                Type expr_type = Type.max(expr1_type,expr2_type);
+                //按照最高级别类型做必要的操作数拓宽（强转）
+                expr1_addr = widen(expr1_addr,expr1_type,expr_type);
+                expr2_addr = widen(expr2_addr,expr2_type,expr_type);
+                expr.setType(expr_type);
                 String expr_addr = getTemp();
-                symbols.push(new Symbol(left, "null", expr_addr));
+                expr.setAddr(expr_addr);
+                symbols.push(expr);
                 codes.add(new Code(op, expr1_addr, expr2_addr, expr_addr));    //加入三地址码
                 break;
             }
             case "expr -> factor ": {
-                String tmp = symbols.pop().getAddr();
-                symbols.push(new Symbol(left, "null", tmp));  //addr放到addr
+                Symbol factor = symbols.pop();
+                String tmp = factor.getAddr();
+                symbols.push(new Symbol(left, "null", tmp, factor.getType()));  //addr放到addr
                 break;
             }
             case "expr -> expr < expr ":
@@ -365,11 +387,12 @@ public class Semantic {
                 break;
             }
             case "factor -> L " : {
-                String term = getTemp();   //新生成temp
-                String L = symbols.peek().getAddr();
+                String temp = getTemp();   //新生成temp
+                Symbol L = symbols.pop();
+                String L_addr = symbols.peek().getAddr();
                 String id = symbols.pop().getSecond();
-                symbols.push(new Symbol(left,id,term));   //这个也是随便弄的
-                codes.add(new Code("=[]",id,L,term));
+                symbols.push(new Symbol(left,id,temp, L.getType()));   //这个也是随便弄的
+                codes.add(new Code("=[]",id,L_addr,temp));
                 break;
             }
             case "factor -> id " : {
@@ -379,13 +402,17 @@ public class Semantic {
 
                     top.get(id).setNs(false); // 清掉，防止多次对同一标识符报错
                 }
-                symbols.push(new Symbol(left, "null", id));   //second放到addr
+                symbols.push(new Symbol(left, "null", id, top.get(id).getType()));   //second放到addr
                 break;
             }
-            case "factor -> num " :
+            case "factor -> num " : {
+                String tmp = symbols.pop().getSecond();
+                symbols.push(new Symbol(left, "null", tmp, Type.Int));   //second放到addr
+                break;
+            }
             case "factor -> real " : {
                 String tmp = symbols.pop().getSecond();
-                symbols.push(new Symbol(left, "null", tmp));   //second放到addr
+                symbols.push(new Symbol(left, "null", tmp, Type.Float));   //second放到addr
                 break;
             }
             case "factor -> ( expr ) " : {
@@ -534,14 +561,14 @@ public class Semantic {
                         append(" ").
                         append(x.getArg2()).
                         append(" goto ").append(x.getResult());
-             }else if(x.getOp().equals("goto")){
+            }else if(x.getOp().equals("goto")){
                 s.append("goto ").append(x.getResult());
             }else
                 continue;
-System.out.println(addr+": " + String.valueOf(s));
+            System.out.println(addr+": " + String.valueOf(s));
             tbmodel_addr_code.addRow(new String[]{addr+": ", String.valueOf(s)});    //最后实际在这里输出
         }
-System.out.println((codes.size()+100)+": "+ " ");
+        System.out.println((codes.size()+100)+": "+ " ");
         tbmodel_addr_code.addRow(new String[]{(codes.size()+100)+": ", " "});     //这个是输出大小的
         //System.out.println(codes.size()+100+": ");
     }
@@ -554,6 +581,32 @@ System.out.println((codes.size()+100)+": "+ " ");
     //conds.size刚好是下一条指令的地址
     private int nextInstr() {
         return codes.size();
+    }
+
+    /**
+     * 拓宽类型
+     */
+    private String widen(String addr,Type t,Type w){
+        if(t.toString().equals(w.toString())) return addr;
+        else{//类型不同，需要强转
+            String temp= getTemp();
+            codes.add(new Code("=","("+w.lexeme+")"+addr,"null",temp));
+            return temp;
+        }
+
+    }
+
+    /**
+     * 窄化类型
+     */
+    private String shorten(String addr, Type operator, Type result) {
+        if(operator.toString().equals(result.toString()))
+            return addr;
+        else {
+            String t = getTemp();
+            codes.add(new Code("=","("+result.lexeme+")"+addr,"null",t));
+            return t;
+        }
     }
 
 }
