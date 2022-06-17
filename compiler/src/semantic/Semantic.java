@@ -426,28 +426,31 @@ public class Semantic {
             case "L -> id [ expr ] ": {
                 String L = getTemp();
                 symbols.pop();
-                String expr = symbols.pop().getAddr();
+                Symbol expr = symbols.pop();
+                String expr_addr = expr.getAddr();
                 symbols.pop();
                 Symbol id = symbols.pop();
                 String id_lexeme = id.getSecond();
                 Array id_type = (Array) top.get(id_lexeme).getType();//new Array(10, new Array(20, Type.Int));
                 symbols.push(new Symbol(left, id_lexeme, L, id_type.element)); // 子数组类型
-                codes.add(new Code("*",expr, ""+id_type.element.width, L));
+                expr_addr = shorten(expr_addr, expr.getType(), Type.Int);
+                codes.add(new Code("*",expr_addr, ""+id_type.element.width, L));
                 break;
             }
             case "L -> L [ expr ] ": {
                 String t = getTemp();
                 String L_addr = getTemp();
                 symbols.pop();
-                String expr = symbols.pop().getAddr();
+                Symbol expr = symbols.pop();
+                String expr_addr = expr.getAddr();
                 symbols.pop();
                 Symbol L1 = symbols.pop();
                 Array L1_array = (Array)L1.getType();
                 String L1_addr = L1.getAddr();
                 String id = L1.getSecond();
                 symbols.push(new Symbol(left, id, L_addr, L1_array.element)); //子数组类型
-
-                codes.add(new Code("*", expr, "" + L1_array.element.width, t));
+                expr_addr = shorten(expr_addr, expr.getType(), Type.Int);
+                codes.add(new Code("*", expr_addr, "" + L1_array.element.width, t));
                 codes.add(new Code("+", L1_addr, t , L_addr));
                 break;
             }
