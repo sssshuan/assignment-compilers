@@ -49,6 +49,7 @@ public abstract class LRParser {
             e.printStackTrace();
         }
         result = new ArrayList<>();
+        semantic = new Semantic();
 
         inputs.add(new Token('$'));
         int inputIndex = 0;
