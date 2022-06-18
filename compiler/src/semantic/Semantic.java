@@ -49,6 +49,7 @@ public class Semantic {
 
     public void add(String first, String second){
         symbols.push(new Symbol(first, second, "null"));
+//        System.out.println("呃呃呃呃呃"+  first + "\t" + second);
     }
 
 
@@ -189,6 +190,7 @@ public class Semantic {
                 symbols.pop();
                 Symbol id = symbols.pop();
                 String id_lexeme = id.getSecond();    //id用second
+    Logger.getGlobal().severe(id_lexeme);
                 Type id_type = top.get(id_lexeme).getType(); //得到id的类型
                 symbols.push(new Symbol(left, "null", id_lexeme));
                 expr = shorten(expr, type_expr, id_type); // 类型窄化
@@ -204,6 +206,11 @@ public class Semantic {
                 Symbol L = symbols.pop();
                 String index_expr_addr = L.getAddr();
                 String array = L.getSecond(); //取出具体的id
+
+                if(!Type.numeric(L.getType()) && !L.getType().toString().equals(expr.getType().toString())) {
+                    recordError("类型不匹配，预期: " + L.getType() + ", 实际: " + expr.getType());
+                }
+
                 symbols.push(new Symbol(left,"null",index_expr_addr));   //这里暂时不知道加什么
                 expr_addr = shorten(expr_addr, expr.getType(), L.getType()); // 类型窄化
                 codes.add(new Code("[]=",index_expr_addr,expr_addr,array));   //生成一条
@@ -383,8 +390,8 @@ public class Semantic {
             case "factor -> L " : {
                 String temp = getTemp();   //新生成temp
                 Symbol L = symbols.pop();
-                String L_addr = symbols.peek().getAddr();
-                String id = symbols.pop().getSecond();
+                String L_addr = L.getAddr();
+                String id = L.getSecond();
                 symbols.push(new Symbol(left,id,temp, L.getType()));   //这个也是随便弄的
                 codes.add(new Code("=[]",id,L_addr,temp));
                 break;
